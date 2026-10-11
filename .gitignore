@@ -1,0 +1,15 @@
+.scratch/
+node_modules/
+.next/
+.env
+.env.*
+!.env.example
+.storage/
+.backups/
+uploads/
+*.log
+coverage/
+playwright-report/
+test-results/
+# Data contoh asli wajib pajak (jangan pernah di-commit)
+docs/contoh data.*
