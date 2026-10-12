@@ -15,6 +15,8 @@ type OpsiRequest = {
   json?: unknown;
   /** Isi form urlencoded (dipakai Auth.js). */
   form?: Record<string, string>;
+  /** Isi multipart (unggah file); Content-Type diisi oleh Request. */
+  multipart?: FormData;
   /** Header Cookie lengkap. */
   cookie?: string | null;
   /** Origin permintaan. Bawaan = APP_URL; `null` menghilangkan header. */
@@ -26,7 +28,10 @@ type OpsiRequest = {
 /** Membuat Request seperti yang diterima Route Handler, lengkap dengan Origin same-origin. */
 export function buatRequest(jalur: string, opsi: OpsiRequest = {}): Request {
   const method =
-    opsi.method ?? (opsi.json !== undefined || opsi.form !== undefined ? 'POST' : 'GET');
+    opsi.method ??
+    (opsi.json !== undefined || opsi.form !== undefined || opsi.multipart !== undefined
+      ? 'POST'
+      : 'GET');
   const headers = new Headers(opsi.headers);
   const origin = opsi.origin === undefined ? APP_URL_TES : opsi.origin;
   if (origin !== null && method !== 'GET') {
@@ -38,8 +43,10 @@ export function buatRequest(jalur: string, opsi: OpsiRequest = {}): Request {
   if (opsi.ip) {
     headers.set('X-Forwarded-For', opsi.ip);
   }
-  let body: string | undefined;
-  if (opsi.json !== undefined) {
+  let body: string | FormData | undefined;
+  if (opsi.multipart !== undefined) {
+    body = opsi.multipart;
+  } else if (opsi.json !== undefined) {
     headers.set('Content-Type', 'application/json');
     body = JSON.stringify(opsi.json);
   } else if (opsi.form !== undefined) {

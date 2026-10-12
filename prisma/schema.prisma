@@ -33,6 +33,7 @@ model Pengguna {
 
   auditLog      AuditLog[]
   periodeDibuat Periode[]
+  imporDibuat   Impor[]
 
   @@map("pengguna")
 }
@@ -77,8 +78,76 @@ model Periode {
 
   createdBy Pengguna  @relation(fields: [createdById], references: [id], onDelete: Restrict)
   wilayah   Wilayah[]
+  impor     Impor[]
+  peserta   Peserta[]
 
   @@map("periode")
+}
+
+/// Riwayat setiap impor; hanya impor terakhir `aktif` (index unik parsial `impor_satu_aktif`).
+model Impor {
+  id           String   @id @default(cuid(2))
+  periodeId    String   @map("periode_id")
+  namaFile     String   @map("nama_file")
+  /// SHA-256 hex huruf kecil dari file mentah; file sendiri tidak disimpan (SECURITY §8).
+  fileSha256   String   @map("file_sha256")
+  totalBaris   Int      @map("total_baris")
+  jumlahLolos  Int      @map("jumlah_lolos")
+  jumlahGugur  Int      @map("jumlah_gugur")
+  /// `RingkasanImpor` (src/lib/domain/impor.ts) tanpa total yang sudah punya kolom sendiri.
+  ringkasan    Json
+  aktif        Boolean  @default(true)
+  importedById String   @map("imported_by_id")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  periode    Periode   @relation(fields: [periodeId], references: [id], onDelete: Restrict)
+  importedBy Pengguna  @relation(fields: [importedById], references: [id], onDelete: Restrict)
+  peserta    Peserta[]
+
+  @@index([periodeId, createdAt(sort: Desc)])
+  @@map("impor")
+}
+
+/// Setiap baris data impor aktif (lolos maupun gugur). NOP sengaja tidak unik: NOP ganda
+/// harus tersimpan agar dapat dilaporkan.
+model Peserta {
+  id           String    @id @default(cuid(2))
+  periodeId    String    @map("periode_id")
+  imporId      String    @map("impor_id")
+  /// Nomor baris di file (header = 1).
+  baris        Int
+  nop          String
+  /// iv(12) || ciphertext || tag(16), AES-256-GCM. Null bila sel NIK kosong.
+  nikEnc       Bytes?    @map("nik_enc")
+  nikMasked    String    @map("nik_masked")
+  nikValid     Boolean   @map("nik_valid")
+  nama         String
+  alamatWp     String    @map("alamat_wp")
+  alamatOp     String    @map("alamat_op")
+  kecamatanRaw String    @map("kecamatan_raw")
+  kecamatan    String
+  kelurahan    String
+  lunas2022    DateTime? @map("lunas_2022") @db.Timestamptz(3)
+  lunas2023    DateTime? @map("lunas_2023") @db.Timestamptz(3)
+  lunas2024    DateTime? @map("lunas_2024") @db.Timestamptz(3)
+  lunas2025    DateTime? @map("lunas_2025") @db.Timestamptz(3)
+  lunas2026    DateTime? @map("lunas_2026") @db.Timestamptz(3)
+  /// Nilai sel asli per tahun, mis. `{ "2022": "29/06/2022 14:14:36" }`.
+  lunasRaw     Json      @map("lunas_raw")
+  eligible     Boolean
+  alasan       String[]
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  periode Periode @relation(fields: [periodeId], references: [id], onDelete: Restrict)
+  impor   Impor   @relation(fields: [imporId], references: [id], onDelete: Cascade)
+
+  @@index([periodeId, eligible])
+  @@index([periodeId, kecamatan])
+  @@index([periodeId, nop])
+  @@index([alasan], type: Gin)
+  /// Btree biasa: `text_pattern_ops` tidak dapat dibaca balik oleh Prisma (selalu drift).
+  @@index([periodeId, nama])
+  @@map("peserta")
 }
 
 /// Dua wilayah per periode (W1, W2), dibuat otomatis bersama periodenya.

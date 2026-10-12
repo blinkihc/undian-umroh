@@ -44,6 +44,8 @@ export async function kosongkanPeriode(): Promise<void> {
   const klien = new Client({ connectionString: URL_DB_E2E });
   await klien.connect();
   try {
+    await klien.query('DELETE FROM peserta');
+    await klien.query('DELETE FROM impor');
     await klien.query('DELETE FROM wilayah');
     await klien.query('DELETE FROM periode');
   } finally {

@@ -141,7 +141,8 @@ export function FormPeriode(props: FormPeriodeProps): ReactElement {
     setMemuat(false);
     if (hasil.ok) {
       if (periode === null) {
-        router.push(`/admin/periode/${hasil.data.id}`);
+        // UX_FLOWS Flow 2 langkah 7: langsung ke tab Data Peserta.
+        router.push(`/admin/periode/${hasil.data.id}/peserta`);
         return;
       }
       setPesan({ jenis: 'info', teks: 'Perubahan periode disimpan.' });

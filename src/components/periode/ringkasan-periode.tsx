@@ -1,9 +1,6 @@
 import { type ReactElement, type ReactNode } from 'react';
 
-import { Alert } from '@/components/ui/alert';
 import { formatTanggal, formatWaktuWib, type KodeWilayah, type StatusPeriode } from '@/lib/domain';
-
-import { ChipStatusPeriode } from './chip-status-periode';
 
 export type PeriodeDetailTampil = {
   id: string;
@@ -30,19 +27,10 @@ function Baris({ label, children }: { label: string; children: ReactNode }): Rea
   );
 }
 
-/** Judul, chip status, dan pengaturan periode dalam bentuk baca-saja (Admin dan Operator). */
+/** Pengaturan periode dalam bentuk baca-saja (Admin dan Operator); judul ada di `KepalaPeriode`. */
 export function RingkasanPeriode({ periode }: { periode: PeriodeDetailTampil }): ReactElement {
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="font-heading text-h1 font-bold text-neutral-900">{periode.judul}</h1>
-        <ChipStatusPeriode status={periode.status} />
-      </div>
-      {periode.status === 'DIBATALKAN' && (
-        <Alert jenis="galat" judul="Periode ini dibatalkan.">
-          {`Alasan: ${periode.alasanBatal ?? '-'}`}
-        </Alert>
-      )}
       <section
         aria-labelledby="judul-pengaturan-periode"
         className="rounded-md border border-neutral-300 bg-neutral-0 p-6 shadow-sm"

@@ -49,7 +49,12 @@ export async function kirimJson<T>(
   } catch {
     data = null;
   }
-  if (respons.ok) {
+  return bentukHasil<T>(respons.status, data);
+}
+
+/** Membentuk `HasilApi` dari status HTTP dan isi JSON yang sudah dibaca (dipakai juga unggah). */
+export function bentukHasil<T>(status: number, data: unknown): HasilApi<T> {
+  if (status >= 200 && status < 300) {
     return { ok: true, data: data as T };
   }
   const galat = (data as IsiGalat | null)?.error ?? {};
@@ -60,7 +65,7 @@ export async function kirimJson<T>(
       : {};
   return {
     ok: false,
-    status: respons.status,
+    status,
     code: galat.code ?? 'KESALAHAN_SERVER',
     message: galat.message ?? 'Terjadi kesalahan pada server. Coba lagi.',
     fields,

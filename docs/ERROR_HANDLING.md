@@ -35,7 +35,7 @@ Format respons:
 ```
 
 400:
-Validation error — `VALIDASI_GAGAL`, `HEADER_TIDAK_SESUAI`, `FILE_TIDAK_VALID`. UI menampilkan pesan di bawah field (`details.fields`) atau banner untuk file.
+Validation error — `VALIDASI_GAGAL`, `HEADER_TIDAK_SESUAI` (`details.hilang`, `details.tidakDikenal`), `FILE_TIDAK_VALID` (pesan per kasus di "Kesalahan impor per baris"). UI menampilkan pesan di bawah field (`details.fields`) atau banner untuk file.
 
 401:
 Authentication required — `TIDAK_TERAUTENTIKASI`. Klien mengalihkan ke `/login` dan kembali ke halaman semula setelah login. Sama untuk sesi habis dan akun dinonaktifkan.

@@ -151,8 +151,8 @@ Columns:
 | `total_baris` | int | |
 | `jumlah_lolos` | int | |
 | `jumlah_gugur` | int | |
-| `ringkasan` | jsonb | `{ alasan: { KODE: jumlah }, nikTidakValid: n, nopGanda: n }` |
-| `aktif` | boolean | hanya impor terakhir `true` |
+| `ringkasan` | jsonb | `{ gugurPerAlasan: { KODE: jumlah }, nikTidakValid: n, nopGanda: n, lolosPerKecamatan: { KECAMATAN: jumlahLolos } }`; `nopGanda` = jumlah NOP berbeda yang muncul > 1 kali. jsonb tidak menjaga urutan kunci, jadi layanan mengurutkan ulang saat membaca |
+| `aktif` | boolean | hanya impor terakhir `true` — index unik parsial `impor_satu_aktif` (`WHERE aktif`) |
 | `imported_by_id` | text FK | |
 | `created_at` | timestamptz | |
 
@@ -171,7 +171,7 @@ Columns:
 | `impor_id` | text FK | |
 | `baris` | int | nomor baris di file (header = 1) |
 | `nop` | text | 18 digit hasil normalisasi; jika tidak valid disimpan nilai mentah ter-trim |
-| `nik_enc` | bytea | NIK mentah terenkripsi AES-256-GCM (§10) |
+| `nik_enc` | bytea | nullable; NIK mentah ter-trim terenkripsi AES-256-GCM (§10), juga bila tidak valid; null bila sel kosong |
 | `nik_masked` | text | `1609xxxxxxxx0012`, atau `-` jika tidak valid |
 | `nik_valid` | boolean | 16 digit angka |
 | `nama` | text | |
@@ -455,9 +455,9 @@ Reason:
 Filter berdasarkan kode alasan.
 
 Index:
-`peserta (periode_id, nama text_pattern_ops)`
+`peserta (periode_id, nama)` (btree biasa; `text_pattern_ops` tidak dipakai karena Prisma tidak dapat membacanya balik sehingga selalu terdeteksi drift)
 Reason:
-Pencarian awalan nama di tabel admin.
+Pencarian awalan nama di tabel admin (tiket 06 menilai ulang bila perlu).
 
 Index:
 `audit_log (at DESC)`, `audit_log (aksi, at DESC)`, `audit_log (aktor_id, at DESC)`
@@ -473,7 +473,7 @@ Filter log audit.
 - Tabel `peserta`, `kecamatan_wilayah`, `periode.batas_lunas` hanya boleh berubah saat `status = DRAF`.
 - `snapshot`, `snapshot_peserta`, `hasil_undian` **immutable**: tidak ada UPDATE/DELETE di kode aplikasi. Trigger PostgreSQL `BEFORE UPDATE OR DELETE` menolak perubahan (dibuat di migrasi).
 - `audit_log` append-only: trigger menolak UPDATE/DELETE (per baris) dan TRUNCATE (per pernyataan) lewat fungsi `tolak_ubah_tabel_immutable()` yang dipakai ulang oleh tabel immutable lain. Tes membuat akun dengan username acak dan tidak menghapus data; pembersihan massal di tes memakai `session_replication_role = replica`.
-- Tabel yang sudah ada di skema: `pengguna`, `audit_log` (tiket 02) serta `periode`, `wilayah` (tiket 04); tabel lain menyusul bersama tiket pemiliknya. Kolom `periode.tema_id` ditambahkan oleh tiket tema.
+- Tabel yang sudah ada di skema: `pengguna`, `audit_log` (tiket 02), `periode`, `wilayah` (tiket 04), `impor`, `peserta` (tiket 05); tabel lain menyusul bersama tiket pemiliknya. Kolom `periode.tema_id` ditambahkan oleh tiket tema.
 - Pembuatan periode memakai `pg_advisory_xact_lock(hashtext('periode:satu-aktif'))` agar dua permintaan bersamaan diproses bergiliran dengan pesan `PERIODE_AKTIF_SUDAH_ADA` yang jelas; index `periode_satu_aktif` tetap penjaga terakhir.
 - `slot_hasil`: hanya kolom status yang boleh berubah, lewat service pemenang dengan `version`.
 

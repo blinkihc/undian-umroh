@@ -39,14 +39,58 @@ test.describe('Kelola periode', () => {
     await form.getByLabel('Nama Wilayah 1').fill('Wilayah Barat');
     await form.getByRole('button', { name: 'Simpan' }).click();
 
-    await expect(page).toHaveURL(/\/admin\/periode\/[a-z0-9]+$/);
+    // UX_FLOWS Flow 2 langkah 7: langsung ke tab Data Peserta yang masih kosong.
+    await expect(page).toHaveURL(/\/admin\/periode\/[a-z0-9]+\/peserta$/);
     await expect(page.getByRole('heading', { level: 1, name: JUDUL })).toBeVisible();
+    await expect(page.getByText('Belum ada data peserta.')).toBeVisible();
+    await page
+      .getByRole('navigation', { name: 'Menu periode' })
+      .getByRole('link', { name: 'Pengaturan' })
+      .click();
     const ringkasan = page.getByRole('region', { name: 'Pengaturan Periode' });
     await expect(ringkasan).toContainText('30/09/2026 23:59:59 WIB');
     await expect(ringkasan).toContainText('20/10/2026');
     await expect(ringkasan).toContainText('Wilayah Barat');
     await expect(ringkasan).toContainText('Wilayah 2');
     expect(await hitungAudit('PERIODE_BUAT', admin)).toBe(1);
+  });
+
+  test('Admin mengimpor CSV dummy dan melihat laporan lolos/gugur, lalu impor ulang', async ({
+    page,
+  }) => {
+    const admin = await masuk(page, 'ADMIN');
+    await page.getByRole('link', { name: JUDUL }).click();
+    await page
+      .getByRole('navigation', { name: 'Menu periode' })
+      .getByRole('link', { name: 'Data Peserta' })
+      .click();
+
+    await page.getByLabel(/^File ekspor PBB/).setInputFiles('tests/fixtures/impor/campuran.csv');
+    await page.getByRole('button', { name: 'Unggah File' }).click();
+
+    await expect(page.getByText('Impor selesai: 33 baris, 7 lolos, 26 gugur.')).toBeVisible();
+    const kartu = page.getByRole('region', { name: 'Ringkasan data peserta' });
+    await expect(kartu).toContainText('Total baris33');
+    await expect(kartu).toContainText('Gugur26');
+    await expect(kartu).toContainText('NOP ganda1');
+    await expect(kartu).toContainText('Peringatan NIK2');
+    await expect(page.getByText('3 kecamatan belum dipetakan ke wilayah.')).toBeVisible();
+    const perAlasan = page.getByRole('region', { name: 'Gugur per alasan' });
+    await expect(perAlasan.getByRole('row')).toHaveCount(26);
+    await expect(perAlasan).toContainText('LEWAT_BATAS_2026');
+    await page.screenshot({
+      path: 'test-results/visual/admin-data-peserta-desktop.png',
+      fullPage: true,
+    });
+
+    await page.getByLabel(/^File ekspor PBB/).setInputFiles('tests/fixtures/impor/campuran.csv');
+    await page.getByRole('button', { name: 'Unggah File' }).click();
+    await expect(
+      page.getByText('Impor ulang akan mengganti seluruh data peserta periode ini. Lanjutkan?'),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Ya, impor ulang' }).click();
+    await expect(page.getByText('Impor selesai: 33 baris, 7 lolos, 26 gugur.')).toBeVisible();
+    expect(await hitungAudit('IMPOR_BERHASIL', admin)).toBe(2);
   });
 
   test('dasbor menampilkan periode dengan chip Draf dan menahan periode kedua', async ({

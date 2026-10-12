@@ -142,27 +142,32 @@ Response `200`: objek periode lengkap berstatus `DIBATALKAN` dengan `alasanBatal
 
 #### POST /api/periode/:id/impor
 Authentication: Required (ADMIN)
-Request: `multipart/form-data`, field `file` (`.csv` atau `.xlsx`, ≤ 20 MB), field `version`.
-Validation: periode `DRAF`; header 12 kolom (PRD §6.0).
+Request: `multipart/form-data`, field `file` (`.csv` atau `.xlsx`, ≤ 20 MB), field `version`; field lain ditolak.
+Validation: periode `DRAF` (selain itu `409 PERIODE_TERKUNCI`, diperiksa sebelum versi); `version` basi → `409 CONFLICT`; header 12 kolom (PRD §6.0). Impor berhasil menaikkan `periode.version` dan mengganti seluruh peserta periode dalam satu transaksi; audit `IMPOR_BERHASIL`. Penolakan tingkat file dicatat `IMPOR_DITOLAK`.
+Error file: `413 FILE_TERLALU_BESAR`; `400 FILE_TIDAK_VALID` untuk ekstensi bukan `.csv`/`.xlsx`, file kosong/hanya header ("File tidak berisi data peserta."), lebih dari 100.000 baris, atau bukan UTF-8/berisi byte NUL ("File tidak dapat dibaca. Simpan ulang sebagai CSV UTF-8."). Sampai tiket 07, `.xlsx` dan CSV Windows-1252 masih ditolak `FILE_TIDAK_VALID` dengan pesan arahan.
 Response `200`:
 ```json
 {
   "imporId": "clx9z8y7",
+  "namaFile": "ekspor-pbb-2026.csv",
+  "diimporAt": "2026-10-12T14:05:03+07:00",
   "totalBaris": 45812,
   "jumlahLolos": 41230,
   "jumlahGugur": 4582,
   "lolosPerWilayah": { "W1": 18200, "W2": 19100, "BELUM_DIPETAKAN": 3930 },
   "gugurPerAlasan": { "TANGGAL_KOSONG_2024": 2100, "LEWAT_BATAS_2026": 1500, "NOP_DUPLICATE": 12 },
   "nikTidakValid": 37,
+  "nopGanda": 6,
   "kecamatanBelumDipetakan": ["BUAY RUNJUNG"],
   "version": 4
 }
 ```
-Error khusus: `400 HEADER_TIDAK_SESUAI` dengan `details: { "hilang": ["Tanggal Lunas 2024"], "tidakDikenal": ["TGL_2024"] }`.
+Error khusus: `400 HEADER_TIDAK_SESUAI` dengan `details: { "hilang": ["Tanggal Lunas 2024"], "tidakDikenal": ["TGL_2024"] }` dan pesan "Header file tidak sesuai. Kolom hilang: Tanggal Lunas 2024. Kolom tidak dikenal: TGL_2024." Kolom wajib yang muncul dua kali masuk `tidakDikenal`.
+`gugurPerAlasan` terurut menurut urutan kode PRD §6.0; `nopGanda` = jumlah NOP berbeda yang muncul lebih dari sekali; `kecamatanBelumDipetakan` terurut abjad. Sampai tiket 08 semua peserta lolos masuk `BELUM_DIPETAKAN`.
 
 #### GET /api/periode/:id/ringkasan
 Authentication: Required (ADMIN)
-Response: bentuk sama dengan respons impor (dihitung dari impor aktif + pemetaan terkini).
+Response: bentuk sama dengan respons impor (dihitung dari impor aktif + pemetaan terkini). Belum ada impor → `404 TIDAK_DITEMUKAN` "Belum ada data peserta."
 
 #### GET /api/periode/:id/peserta
 Authentication: Required (ADMIN)

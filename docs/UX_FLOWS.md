@@ -141,7 +141,13 @@ Error State:
 - Periode tidak Draf → tombol unggah tidak tampil; jika dipaksa lewat API → "Periode sudah terkunci. Data tidak dapat diubah."
 
 Empty State:
-"Belum ada data peserta. Unggah file ekspor PBB (CSV pemisah titik koma atau XLSX)." + tautan unduh contoh format header.
+"Belum ada data peserta. Unggah file ekspor PBB (CSV pemisah titik koma atau XLSX)." + tautan unduh contoh format header (`/contoh/format-impor.csv`).
+
+Catatan implementasi (tiket 05):
+- Panel unggah berada di atas laporan agar pesan hasil langsung terlihat. Konfirmasi impor ulang sebaris ("Ya, impor ulang" / "Batal").
+- Kemajuan dua tahap: "Mengunggah… n%" (kemajuan unggah sungguhan), lalu "Memproses baris dan menyimpan…" tak tentu, karena evaluasi dan penyimpanan berjalan dalam satu permintaan. Tahap "Membaca header" dan hitungan baris n/total tidak ditampilkan terpisah.
+- Pesan sukses tampil sebagai banner info di panel unggah (belum ada komponen toast).
+- Tabel peserta dan ekspor daftar gugur menyusul di tiket 06; tautan ke pemetaan wilayah di tiket 08.
 
 Success:
 Toast "Impor selesai: 45.812 baris, 41.230 lolos, 4.582 gugur." (angka ilustrasi). Tercatat di log audit.

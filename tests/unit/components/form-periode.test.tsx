@@ -58,7 +58,7 @@ describe('FormPeriode mode buat', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
 
     await waitFor(() => {
-      expect(push).toHaveBeenCalledWith('/admin/periode/baru1');
+      expect(push).toHaveBeenCalledWith('/admin/periode/baru1/peserta');
     });
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/periode');
     expect(isiTerkirim()).toEqual({

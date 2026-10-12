@@ -7,6 +7,8 @@ import { getDb } from '@/server/db';
  */
 export async function bersihkanPeriode(): Promise<void> {
   const db = getDb();
+  await db.peserta.deleteMany();
+  await db.impor.deleteMany();
   await db.wilayah.deleteMany();
   await db.periode.deleteMany();
 }
@@ -17,4 +19,25 @@ export async function aturStatusPeriode(
   status: 'DRAF' | 'TERKUNCI' | 'DIUNDI' | 'FINAL' | 'DIPUBLIKASI',
 ): Promise<void> {
   await getDb().periode.update({ where: { id }, data: { status } });
+}
+
+/** Periode Draf langsung di DB (tanpa API) dengan dua wilayah bawaan. */
+export async function buatPeriodeTes(
+  createdById: string,
+): Promise<{ id: string; version: number }> {
+  return getDb().periode.create({
+    data: {
+      slug: `uji-${Date.now().toString(36)}`,
+      judul: 'Periode Uji Impor',
+      batasLunas: new Date('2026-09-30T23:59:59+07:00'),
+      createdById,
+      wilayah: {
+        create: [
+          { kode: 'W1', nama: 'Wilayah 1' },
+          { kode: 'W2', nama: 'Wilayah 2' },
+        ],
+      },
+    },
+    select: { id: true, version: true },
+  });
 }

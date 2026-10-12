@@ -10,11 +10,11 @@ import { periksaBatalPeriode, periksaUbahPeriode } from '@/lib/domain';
 import { wajibPeran } from '@/server/auth/halaman';
 import { cariPeriode } from '@/server/services/periode';
 
-export const metadata: Metadata = { title: `Periode | ${NAMA_APLIKASI}` };
+export const metadata: Metadata = { title: `Pengaturan Periode | ${NAMA_APLIKASI}` };
 
 type HalamanPeriodeProps = { params: Promise<{ id: string }> };
 
-/** Halaman periode untuk Admin: ringkasan, ubah pengaturan, dan batalkan. */
+/** Tab Pengaturan periode untuk Admin: ringkasan, ubah pengaturan, dan batalkan. */
 export default async function HalamanPeriodeAdmin({
   params,
 }: HalamanPeriodeProps): Promise<ReactElement> {
