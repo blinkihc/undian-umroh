@@ -371,6 +371,79 @@ describe('PATCH /api/periode/:id', () => {
       code: 'TIDAK_DITEMUKAN',
     });
   });
+
+  it('mengubah batasLunas mengevaluasi ulang peserta dan ringkasan', async () => {
+    const periode = await buatPeriodeUji();
+    const impor = await getDb().impor.create({
+      data: {
+        periodeId: periode.id,
+        namaFile: 'uji.csv',
+        fileSha256: 'a'.repeat(64),
+        totalBaris: 1,
+        jumlahLolos: 1,
+        jumlahGugur: 0,
+        ringkasan: {
+          gugurPerAlasan: {},
+          nikTidakValid: 0,
+          nopGanda: 0,
+          lolosPerKecamatan: { MUARADUA: 1 },
+        },
+        importedById: admin.id,
+      },
+    });
+    const peserta = await getDb().peserta.create({
+      data: {
+        periodeId: periode.id,
+        imporId: impor.id,
+        baris: 2,
+        nop: '160912345678901234',
+        nikMasked: '1609xxxxxxxx0001',
+        nikValid: true,
+        nama: 'Peserta Uji',
+        alamatWp: 'Jl. Uji',
+        alamatOp: 'Jl. OP',
+        kecamatanRaw: 'MUARADUA',
+        kecamatan: 'MUARADUA',
+        kelurahan: 'Pasar',
+        lunas2022: new Date('2022-06-01T00:00:00Z'),
+        lunas2023: new Date('2023-06-01T00:00:00Z'),
+        lunas2024: new Date('2024-06-01T00:00:00Z'),
+        lunas2025: new Date('2025-06-01T00:00:00Z'),
+        lunas2026: new Date('2026-09-15T00:00:00Z'),
+        lunasRaw: {},
+        eligible: true,
+        alasan: [],
+      },
+    });
+
+    const resTurun = await ubahLewatApi(periode.id, {
+      version: 1,
+      batasLunas: '2026-08-31T23:59:59+07:00',
+    });
+    expect(resTurun.status).toBe(200);
+
+    const pesertaGugur = await getDb().peserta.findUniqueOrThrow({ where: { id: peserta.id } });
+    expect(pesertaGugur.eligible).toBe(false);
+    expect(pesertaGugur.alasan).toContain('LEWAT_BATAS_2026');
+
+    const imporGugur = await getDb().impor.findUniqueOrThrow({ where: { id: impor.id } });
+    expect(imporGugur.jumlahLolos).toBe(0);
+    expect(imporGugur.jumlahGugur).toBe(1);
+
+    const resNaik = await ubahLewatApi(periode.id, {
+      version: 2,
+      batasLunas: '2026-09-30T23:59:59+07:00',
+    });
+    expect(resNaik.status).toBe(200);
+
+    const pesertaLolos = await getDb().peserta.findUniqueOrThrow({ where: { id: peserta.id } });
+    expect(pesertaLolos.eligible).toBe(true);
+    expect(pesertaLolos.alasan).toEqual([]);
+
+    const imporLolos = await getDb().impor.findUniqueOrThrow({ where: { id: impor.id } });
+    expect(imporLolos.jumlahLolos).toBe(1);
+    expect(imporLolos.jumlahGugur).toBe(0);
+  });
 });
 
 describe('POST /api/periode/:id/batal', () => {

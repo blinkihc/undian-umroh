@@ -9,24 +9,171 @@ import {
   BARIS_IMPOR_MAKS,
   KODE_ALASAN,
   PESAN_PERIODE_DITOLAK,
+  TAHUN_LUNAS,
   evaluasiImpor,
+  evaluateEligibility,
   isoWib,
   periksaHeader,
+  type AturanSyarat,
+  type GalatTanggal,
   type KodeAlasan,
   type KodeWilayah,
   type PesertaTerevaluasi,
   type PetaKolom,
+  type Result,
   type RingkasanImpor,
+  type TahunLunas,
 } from '@/lib/domain';
 import { audit } from '@/server/audit';
 import { type PenggunaSesi } from '@/server/auth/sesi';
-import { getDb } from '@/server/db';
+import { getDb, type DbClient } from '@/server/db';
 import { AppError } from '@/server/errors';
 import { bacaFileImpor } from '@/server/impor/baca-file';
 import { type FormImpor } from '@/server/impor/form';
 import { enkripsiNik } from '@/server/nik';
 import { type KonteksRequest } from '@/server/request';
 import { petaKecamatanWilayah, sinkronkanKecamatan } from '@/server/services/wilayah';
+
+/** Jumlah baris per batch operasi peserta. */
+const UKURAN_BATCH = 1000;
+
+const PILIH_IMPOR = {
+  id: true,
+  namaFile: true,
+  totalBaris: true,
+  jumlahLolos: true,
+  jumlahGugur: true,
+  ringkasan: true,
+  createdAt: true,
+} as const satisfies Prisma.ImporSelect;
+
+/**
+ * Evaluasi ulang semua peserta periode dengan `batasLunas` baru (Tiket 09). Dipanggil di dalam
+ * transaksi `ubahPeriode` saat `batasLunas` berubah. Memperbarui `eligible`, `alasan`, dan
+ * ringkasan impor aktif dalam satu batch.
+ */
+export async function evaluasiUlangPeserta(
+  tx: DbClient,
+  periodeId: string,
+  batasLunas: Date,
+): Promise<void> {
+  const barisPeserta = await tx.peserta.findMany({
+    where: { periodeId },
+    select: {
+      id: true,
+      nop: true,
+      nikValid: true,
+      nama: true,
+      kecamatan: true,
+      lunas2022: true,
+      lunas2023: true,
+      lunas2024: true,
+      lunas2025: true,
+      lunas2026: true,
+      eligible: true,
+      alasan: true,
+    },
+  });
+  if (barisPeserta.length === 0) return;
+
+  const aturan: AturanSyarat = { batasLunas };
+
+  function keHasilTanggal(nilai: Date | null): Result<Date, GalatTanggal> {
+    if (nilai === null) return { ok: false as const, error: 'TANGGAL_KOSONG' as const };
+    return { ok: true as const, value: nilai };
+  }
+
+  // NOP_DUPLICATE dipertahankan karena tidak terpengaruh batasLunas.
+  // FORMAT_BARIS juga dipertahankan.
+  const ALASAN_TETAP = ['NOP_DUPLICATE', 'FORMAT_BARIS'] as const;
+
+  const hasilEvaluasiSemua: { id: string; eligible: boolean; alasan: KodeAlasan[] }[] = [];
+  const barisPerluUpdate: { id: string; eligible: boolean; alasan: KodeAlasan[] }[] = [];
+
+  for (const p of barisPeserta) {
+    const lunas: Record<TahunLunas, Result<Date, GalatTanggal>> = {
+      2022: keHasilTanggal(p.lunas2022),
+      2023: keHasilTanggal(p.lunas2023),
+      2024: keHasilTanggal(p.lunas2024),
+      2025: keHasilTanggal(p.lunas2025),
+      2026: keHasilTanggal(p.lunas2026),
+    };
+    // Cek NOP valid: 18 digit dan diawali 1609.
+    const nopValid = /^\d{18}$/.test(p.nop) && p.nop.startsWith('1609');
+    const hasil = evaluateEligibility(
+      { nopValid, nama: p.nama, kecamatan: p.kecamatan, lunas },
+      aturan,
+    );
+    const alasanTetap = p.alasan.filter((a): a is KodeAlasan =>
+      (ALASAN_TETAP as readonly string[]).includes(a),
+    );
+    const gabung = [...new Set([...alasanTetap, ...hasil.alasan])].sort(
+      (a, b) => KODE_ALASAN.indexOf(a) - KODE_ALASAN.indexOf(b),
+    );
+    const eligible = gabung.length === 0;
+
+    hasilEvaluasiSemua.push({ id: p.id, eligible, alasan: gabung });
+
+    const alasanSama =
+      p.alasan.length === gabung.length && p.alasan.every((a, idx) => a === gabung[idx]);
+    if (p.eligible !== eligible || !alasanSama) {
+      barisPerluUpdate.push({ id: p.id, eligible, alasan: gabung });
+    }
+  }
+
+  for (let awal = 0; awal < barisPerluUpdate.length; awal += UKURAN_BATCH) {
+    const potongan = barisPerluUpdate.slice(awal, awal + UKURAN_BATCH);
+    await Promise.all(
+      potongan.map((p) =>
+        tx.peserta.update({ where: { id: p.id }, data: { eligible: p.eligible, alasan: p.alasan } }),
+      ),
+    );
+  }
+
+  // Perbarui ringkasan impor aktif.
+  const imporAktif = await tx.impor.findFirst({ where: { periodeId, aktif: true }, select: PILIH_IMPOR });
+  if (imporAktif === null) return;
+
+  const lolosPerKecamatanMap = new Map<string, number>();
+  const gugurPerAlasanMap = new Map<KodeAlasan, number>();
+  let jumlahLolos = 0;
+  let nikTidakValid = 0;
+  const nopHitung = new Map<string, number>();
+  for (const p of barisPeserta) {
+    if (/^\d{18}$/.test(p.nop)) nopHitung.set(p.nop, (nopHitung.get(p.nop) ?? 0) + 1);
+  }
+  const nopGanda = [...nopHitung.values()].filter((n) => n > 1).length;
+  for (let i = 0; i < barisPeserta.length; i++) {
+    const p = barisPeserta[i]!;
+    const u = hasilEvaluasiSemua[i]!;
+    if (u.eligible) {
+      jumlahLolos += 1;
+      if (p.kecamatan !== '') {
+        lolosPerKecamatanMap.set(p.kecamatan, (lolosPerKecamatanMap.get(p.kecamatan) ?? 0) + 1);
+      }
+    }
+    if (!p.nikValid) nikTidakValid += 1;
+    for (const a of u.alasan) gugurPerAlasanMap.set(a, (gugurPerAlasanMap.get(a) ?? 0) + 1);
+  }
+  const gugurPerAlasan: Partial<Record<KodeAlasan, number>> = {};
+  for (const kode of KODE_ALASAN) {
+    const n = gugurPerAlasanMap.get(kode);
+    if (n !== undefined) gugurPerAlasan[kode] = n;
+  }
+  const lolosPerKecamatan: Record<string, number> = {};
+  for (const [k, v] of [...lolosPerKecamatanMap.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    lolosPerKecamatan[k] = v;
+  }
+
+  await tx.impor.update({
+    where: { id: imporAktif.id },
+    data: {
+      jumlahLolos,
+      jumlahGugur: barisPeserta.length - jumlahLolos,
+      ringkasan: { gugurPerAlasan, nikTidakValid, nopGanda, lolosPerKecamatan },
+    },
+  });
+}
 
 /** Ringkasan data peserta periode (API.md POST /api/periode/:id/impor dan GET …/ringkasan). */
 export type RingkasanPeserta = {
@@ -52,8 +199,7 @@ const RingkasanTersimpanSchema = z.object({
   lolosPerKecamatan: z.record(z.string(), z.number()),
 });
 
-/** Jumlah baris per `createMany` (ARCHITECTURE §10). */
-const UKURAN_BATCH = 1000;
+
 
 /** Impor 46.000 baris butuh lebih dari batas transaksi bawaan Prisma (5 detik). */
 const OPSI_TRANSAKSI = { timeout: 120_000, maxWait: 10_000 } as const;
@@ -109,15 +255,7 @@ function keRingkasan(
   };
 }
 
-const PILIH_IMPOR = {
-  id: true,
-  namaFile: true,
-  totalBaris: true,
-  jumlahLolos: true,
-  jumlahGugur: true,
-  ringkasan: true,
-  createdAt: true,
-} as const satisfies Prisma.ImporSelect;
+
 
 /** Ringkasan impor aktif periode, atau null bila belum ada data peserta. */
 export async function ambilRingkasanPeserta(periodeId: string): Promise<RingkasanPeserta | null> {

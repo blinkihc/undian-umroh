@@ -23,6 +23,7 @@ import { type PenggunaSesi } from '@/server/auth/sesi';
 import { getDb, type DbClient } from '@/server/db';
 import { AppError } from '@/server/errors';
 import { type KonteksRequest } from '@/server/request';
+import { evaluasiUlangPeserta } from '@/server/services/impor';
 
 /** Baris daftar periode (API.md GET /api/periode). */
 export type PeriodeRingkas = {
@@ -358,6 +359,10 @@ export async function ubahPeriode(masukan: {
         payload: { perubahan: bedaWilayah },
         konteks,
       });
+    }
+    // Tiket 09: evaluasi ulang peserta saat batasLunas berubah.
+    if (beda.batasLunas !== undefined) {
+      await evaluasiUlangPeserta(tx, id, new Date(perubahan.batasLunas!));
     }
     return keDetail(await tx.periode.findUniqueOrThrow({ where: { id }, select: PILIH_DETAIL }));
   });
