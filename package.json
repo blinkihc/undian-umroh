@@ -26,6 +26,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx --conditions=react-server --env-file-if-exists=.env prisma/seed.ts",
     "fixture:generate": "tsx scripts/generate-fixture.ts",
+    "simulate-draw": "tsx scripts/simulate-draw.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
