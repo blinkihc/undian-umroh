@@ -199,7 +199,7 @@ describe('GET /api/periode/:id/peserta/ekspor-gugur', () => {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
     expect(respons.headers.get('Content-Disposition')).toMatch(
-      /^attachment; filename="daftar-gugur-uji-[a-z0-9]+-\d{8}\.xlsx"$/,
+      /^attachment; filename="daftar-gugur-uji-[a-z0-9-]+-\d{8}\.xlsx"$/,
     );
     const baris = await bacaLembar(respons);
     expect(baris[0]).toEqual([

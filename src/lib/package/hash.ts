@@ -53,8 +53,8 @@ export async function sha256Hex(teks: string | Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', bytes as unknown as BufferSource);
   const arr = new Uint8Array(digest);
   let hex = '';
-  for (let i = 0; i < arr.length; i++) {
-    hex += arr[i]!.toString(16).padStart(2, '0');
+  for (const b of arr) {
+    hex += b.toString(16).padStart(2, '0');
   }
   return hex;
 }

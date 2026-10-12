@@ -9,7 +9,6 @@ import {
   BARIS_IMPOR_MAKS,
   KODE_ALASAN,
   PESAN_PERIODE_DITOLAK,
-  TAHUN_LUNAS,
   evaluasiImpor,
   evaluateEligibility,
   isoWib,
@@ -35,7 +34,7 @@ import { type KonteksRequest } from '@/server/request';
 import { petaKecamatanWilayah, sinkronkanKecamatan } from '@/server/services/wilayah';
 
 /** Jumlah baris per batch operasi peserta. */
-const UKURAN_BATCH = 1000;
+const UKURAN_BATCH = 2000;
 
 const PILIH_IMPOR = {
   id: true,
@@ -144,8 +143,11 @@ export async function evaluasiUlangPeserta(
   }
   const nopGanda = [...nopHitung.values()].filter((n) => n > 1).length;
   for (let i = 0; i < barisPeserta.length; i++) {
-    const p = barisPeserta[i]!;
-    const u = hasilEvaluasiSemua[i]!;
+    const p = barisPeserta[i];
+    const u = hasilEvaluasiSemua[i];
+    if (p === undefined || u === undefined) {
+      continue;
+    }
     if (u.eligible) {
       jumlahLolos += 1;
       if (p.kecamatan !== '') {

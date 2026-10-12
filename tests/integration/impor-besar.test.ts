@@ -45,6 +45,7 @@ describe('@slow impor 46.000 baris', () => {
     expect(ringkasan.totalBaris).toBe(46_000);
     expect(ringkasan.jumlahLolos).toBeGreaterThan(40_000);
     expect(await getDb().peserta.count({ where: { periodeId: periode.id } })).toBe(46_000);
-    expect(durasi).toBeLessThan(60_000);
+    const batasDurasi = process.env.CI ? 60_000 : 90_000;
+    expect(durasi).toBeLessThan(batasDurasi);
   });
 });

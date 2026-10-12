@@ -79,7 +79,7 @@ describe('secureRandomInt', () => {
 
     for (let i = 0; i < totalSamples; i++) {
       const val = secureRandomInt(0, binCount - 1);
-      counts[val]! += 1;
+      counts[val] = (counts[val] ?? 0) + 1;
     }
 
     const expected = totalSamples / binCount;
@@ -139,8 +139,10 @@ describe('State machine undian dan hasil', () => {
     for (let i = 0; i < 6; i++) {
       state = mulaiSlot(state, waktuMulai);
       expect(state.fase).toBe('MENGACAK');
-
-      const slot = SLOT_URUTAN[i]!;
+      const slot = SLOT_URUTAN[i];
+      if (slot === undefined) {
+        continue;
+      }
       const pool = slot.wilayah === 'W1' ? poolW1 : poolW2;
       const pemenangTerpilih = new Set(state.slotSelesai.map((s) => s.urut));
       const pemenang = pilihPemenang(pool, pemenangTerpilih);

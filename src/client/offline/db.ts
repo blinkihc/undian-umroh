@@ -43,7 +43,7 @@ function bukaDb(): Promise<IDBDatabase> {
       resolve(request.result);
     };
     request.onerror = () => {
-      reject(request.error);
+      reject(new Error(request.error?.message ?? 'Gagal membuka IndexedDB'));
     };
   });
 }
@@ -63,7 +63,7 @@ export async function simpanPaketKeDb(paket: PaketTersimpan): Promise<void> {
       resolve();
     };
     req.onerror = () => {
-      reject(req.error);
+      reject(new Error(req.error?.message ?? 'Gagal menyimpan paket'));
     };
   });
 }
@@ -88,7 +88,7 @@ export async function bacaPaketDariDb(): Promise<PaketTersimpan | null> {
       }
     };
     req.onerror = () => {
-      reject(req.error);
+      reject(new Error(req.error?.message ?? 'Gagal membaca paket'));
     };
   });
 }
@@ -107,7 +107,7 @@ export async function simpanStateKeDb(state: StateUndian): Promise<void> {
       resolve();
     };
     req.onerror = () => {
-      reject(req.error);
+      reject(new Error(req.error?.message ?? 'Gagal menyimpan state'));
     };
   });
 }
@@ -132,7 +132,7 @@ export async function bacaStateDariDb(): Promise<StateUndian | null> {
       }
     };
     req.onerror = () => {
-      reject(req.error);
+      reject(new Error(req.error?.message ?? 'Gagal membaca state'));
     };
   });
 }
@@ -151,7 +151,7 @@ export async function hapusDataUndianDariDb(): Promise<void> {
       resolve();
     };
     tx.onerror = () => {
-      reject(tx.error);
+      reject(new Error(tx.error?.message ?? 'Gagal membersihkan data IndexedDB'));
     };
   });
 }
@@ -174,15 +174,15 @@ export async function ambilPerangkatId(): Promise<string> {
         const buffer = new Uint8Array(8);
         crypto.getRandomValues(buffer);
         let idBaru = 'dev_';
-        for (let i = 0; i < buffer.length; i++) {
-          idBaru += buffer[i]!.toString(16).padStart(2, '0');
+        for (const b of buffer) {
+          idBaru += b.toString(16).padStart(2, '0');
         }
         store.put({ key: 'id', value: idBaru });
         resolve(idBaru);
       }
     };
     req.onerror = () => {
-      reject(req.error);
+      reject(new Error(req.error?.message ?? 'Gagal mengakses perangkat ID'));
     };
   });
 }

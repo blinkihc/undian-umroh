@@ -1,11 +1,25 @@
 'use client';
 
 import { Download, FileArchive, History, Lock, ShieldCheck } from 'lucide-react';
-import Link from 'next/link';
 import { type ReactElement } from 'react';
 
 import { TautanTombol } from '@/components/ui/tautan-tombol';
-import { type InfoPaket } from '@/server/services/paket';
+
+export type InfoPaket = {
+  status: string;
+  terkunci: boolean;
+  periode: { id: string; slug: string; judul: string };
+  snapshot: {
+    hash: string;
+    hashRingkas: string;
+    lockedAt: string;
+    jumlahW1: number;
+    jumlahW2: number;
+  } | null;
+  temaAktif: string;
+  perkiraanUkuran: string;
+  riwayatUnduhan: { at: string; oleh: string; paketSha256: string }[];
+};
 
 type PaketUndianProps = {
   periodeId: string;
@@ -13,7 +27,7 @@ type PaketUndianProps = {
 };
 
 export function PaketUndian({ periodeId, info }: PaketUndianProps): ReactElement {
-  const { terkunci, periode, snapshot, temaAktif, perkiraanUkuran, riwayatUnduhan } = info;
+  const { terkunci, snapshot, temaAktif, perkiraanUkuran, riwayatUnduhan } = info;
 
   if (!terkunci || snapshot === null) {
     return (

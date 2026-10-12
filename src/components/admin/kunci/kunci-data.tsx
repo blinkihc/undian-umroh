@@ -1,12 +1,32 @@
 'use client';
 
-import { CheckCircle2, Copy, Lock, ShieldCheck, XCircle } from 'lucide-react';
+import { CheckCircle2, Copy, ShieldCheck, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type ReactElement } from 'react';
 
-import { Tombol } from '@/components/ui/tombol';
-import { type PrasyaratKunci } from '@/server/services/kunci';
+import { Button } from '@/components/ui/button';
+
+export type PrasyaratKunci = {
+  semuaKecamatanTerpetakan: boolean;
+  kecamatanBelumDipetakan: number;
+  tanpaNopGanda: boolean;
+  nopGanda: number;
+  pesertaCukup: boolean;
+  wilayahKurangPeserta: ('W1' | 'W2')[];
+  jumlahPeserta: { W1: number; W2: number };
+  siapKunci: boolean;
+  status: string;
+  snapshot: {
+    hash: string;
+    hashRingkas: string;
+    lockedAt: string;
+    jumlahW1: number;
+    jumlahW2: number;
+  } | null;
+  version: number;
+  judul: string;
+};
 
 type KunciDataProps = {
   periodeId: string;
@@ -110,7 +130,9 @@ export function KunciData({ periodeId, prasyarat }: KunciDataProps): ReactElemen
               </span>
               <button
                 type="button"
-                onClick={salinHash}
+                onClick={() => {
+                  void salinHash();
+                }}
                 className="flex items-center gap-1.5 text-xs font-medium text-primary-700 hover:text-primary-800"
               >
                 <Copy className="size-3.5" />
@@ -198,17 +220,15 @@ export function KunciData({ periodeId, prasyarat }: KunciDataProps): ReactElemen
         </ul>
 
         <div className="mt-8 flex justify-end">
-          <Tombol
-            variant="utama"
+          <Button
+            varian="primary"
             disabled={!siapKunci}
             onClick={() => {
               setBukaDialog(true);
             }}
-            className="flex items-center gap-2"
           >
-            <Lock className="size-4" />
             Kunci Data Peserta
-          </Tombol>
+          </Button>
         </div>
       </div>
 
@@ -240,22 +260,26 @@ export function KunciData({ periodeId, prasyarat }: KunciDataProps): ReactElemen
             {galat && <p className="mt-2 text-xs font-medium text-danger-600">{galat}</p>}
 
             <div className="mt-6 flex justify-end gap-3">
-              <Tombol
-                variant="sekunder"
+              <Button
+                varian="secondary"
                 onClick={() => {
                   setBukaDialog(false);
                 }}
                 disabled={memproses}
               >
                 Batal
-              </Tombol>
-              <Tombol
-                variant="bahaya"
-                onClick={jalankanKunci}
+              </Button>
+              <Button
+                varian="danger"
+                onClick={() => {
+                  void jalankanKunci();
+                }}
                 disabled={konfirmasiJudul !== judul || memproses}
+                memuat={memproses}
+                labelMemuat="Mengunci..."
               >
-                {memproses ? 'Mengunci...' : 'Kunci Sekarang'}
-              </Tombol>
+                Kunci Sekarang
+              </Button>
             </div>
           </div>
         </div>

@@ -1,9 +1,9 @@
 import { type KodeSlotPaket } from '@/lib/package/kontrak';
+
 import {
   HasilUndianSchema,
   hitungHasilHash,
   type HasilUndianData,
-  type HasilUndianTanpaHash,
 } from './hasil';
 
 export const SLOT_URUTAN_RESMI: readonly KodeSlotPaket[] = [
@@ -99,7 +99,7 @@ export async function verifikasiHasilMurni(
 
   // 4. HASIL_HASH
   const { hasilHash, ...tanpaHash } = hasil;
-  const hashKalkulasi = await hitungHasilHash(tanpaHash as HasilUndianTanpaHash);
+  const hashKalkulasi = await hitungHasilHash(tanpaHash);
   if (hasilHash !== hashKalkulasi) {
     return {
       valid: false,
@@ -117,8 +117,7 @@ export async function verifikasiHasilMurni(
     };
   }
 
-  for (let i = 0; i < 6; i++) {
-    const s = hasil.slot[i];
+  for (const [i, s] of hasil.slot.entries()) {
     if (s.urutan !== i + 1 || s.kode !== SLOT_URUTAN_RESMI[i]) {
       return {
         valid: false,
@@ -129,8 +128,7 @@ export async function verifikasiHasilMurni(
   }
 
   // 6. PESERTA_ADA
-  for (let i = 0; i < 6; i++) {
-    const s = hasil.slot[i];
+  for (const s of hasil.slot) {
     if (!konteks.pesertaByUrut.has(s.urut)) {
       return {
         valid: false,
@@ -142,13 +140,12 @@ export async function verifikasiHasilMurni(
   }
 
   // 7. WILAYAH_SESUAI
-  for (let i = 0; i < 6; i++) {
-    const s = hasil.slot[i];
-    const peserta = konteks.pesertaByUrut.get(s.urut)!;
+  for (const s of hasil.slot) {
+    const peserta = konteks.pesertaByUrut.get(s.urut);
     const targetWilayah: 'W1' | 'W2' = s.kode.startsWith('W1') ? 'W1' : 'W2';
     const namaWilayah = targetWilayah === 'W1' ? 'Wilayah 1' : 'Wilayah 2';
 
-    if (peserta.wilayah !== targetWilayah) {
+    if (!peserta || peserta.wilayah !== targetWilayah) {
       return {
         valid: false,
         kode: 'WILAYAH_SESUAI',
@@ -160,8 +157,7 @@ export async function verifikasiHasilMurni(
 
   // 8. PESERTA_UNIK
   const urutSet = new Set<number>();
-  for (let i = 0; i < 6; i++) {
-    const s = hasil.slot[i];
+  for (const s of hasil.slot) {
     if (urutSet.has(s.urut)) {
       return {
         valid: false,
@@ -194,8 +190,7 @@ export async function verifikasiHasilMurni(
   }
 
   let prevTime = tDimulai;
-  for (let i = 0; i < 6; i++) {
-    const s = hasil.slot[i];
+  for (const s of hasil.slot) {
     const tDiundi = new Date(s.diundiAt).getTime();
     if (Number.isNaN(tDiundi)) {
       return {

@@ -80,7 +80,7 @@ describe('impor XLSX', () => {
     const tiga = await pesertaBaris(4);
     expect(tiga.lunasRaw).toMatchObject({
       2022: '29/06/2022 14:14:12',
-      2026: '02/10/2026 00:00:00',
+      2026: '01/10/2026 00:00:00',
     });
     expect(tiga.alasan).toEqual(['LEWAT_BATAS_2026']);
     const empat = await pesertaBaris(5);

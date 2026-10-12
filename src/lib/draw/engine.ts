@@ -1,7 +1,7 @@
 import { SLOT_URUTAN } from '@/lib/package/kontrak';
+
 import { secureRandomInt } from './random';
 import {
-  type FaseUndian,
   type HasilSlotUndian,
   type PesertaUndian,
   type StateUndian,

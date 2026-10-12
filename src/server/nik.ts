@@ -7,8 +7,11 @@ import { getEnv } from '@/config/env';
 const PANJANG_IV = 12;
 const PANJANG_TAG = 16;
 
+let kunciCached: Buffer | undefined;
+
 function kunci(): Buffer {
-  return Buffer.from(getEnv().NIK_ENCRYPTION_KEY, 'base64');
+  kunciCached ??= Buffer.from(getEnv().NIK_ENCRYPTION_KEY, 'base64');
+  return kunciCached;
 }
 
 /**

@@ -34,7 +34,7 @@ export function secureRandomInt(
   const buffer = new Uint8Array(4);
   const dataView = new DataView(buffer.buffer);
 
-  while (true) {
+  for (;;) {
     if (sumberAcak !== undefined) {
       sumberAcak(buffer);
     } else {

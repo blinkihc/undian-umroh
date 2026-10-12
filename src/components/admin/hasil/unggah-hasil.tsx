@@ -4,8 +4,7 @@ import Link from 'next/link';
 import { useState, useTransition, type ChangeEvent, type ReactElement } from 'react';
 
 import { Alert } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Tombol } from '@/components/ui/tombol';
+import { Button } from '@/components/ui/button';
 import { formatHashRingkas } from '@/lib/package/hash';
 
 export interface DetailPemeriksaan {
@@ -95,10 +94,14 @@ export function UnggahHasil({
           body: teks,
         });
 
-        const data = await res.json();
+        const data = (await res.json()) as unknown;
 
         if (!res.ok) {
-          const pesan = data.message || 'Gagal memverifikasi dan mengunggah hasil undian.';
+          const errData = data as { message?: unknown } | null;
+          const pesan =
+            errData && typeof errData === 'object' && typeof errData.message === 'string'
+              ? errData.message
+              : 'Gagal memverifikasi dan mengunggah hasil undian.';
           setErrorPesan(pesan);
           setDaftarCek((prev) =>
             prev.map((item) => ({ ...item, selesai: true, sukses: false })),
@@ -106,7 +109,7 @@ export function UnggahHasil({
           return;
         }
 
-        setSuksesData(data);
+        setSuksesData(data as ResponsSukses);
       } catch (err) {
         setErrorPesan(err instanceof Error ? err.message : 'Terjadi gangguan jaringan.');
       }
@@ -137,7 +140,7 @@ export function UnggahHasil({
       )}
 
       {errorPesan && (
-        <Alert jenis="error" judul="Unggahan Ditolak">
+        <Alert jenis="galat" judul="Unggahan Ditolak">
           {errorPesan}
         </Alert>
       )}
@@ -146,7 +149,9 @@ export function UnggahHasil({
         <div className="space-y-6 rounded-lg border border-success-200 bg-success-50 p-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Badge jenis="sukses">TERVERIFIKASI</Badge>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-success-200 text-success-800">
+                TERVERIFIKASI
+              </span>
               <h3 className="font-heading text-lg font-bold text-success-900">
                 Hasil Terverifikasi
               </h3>
@@ -240,14 +245,15 @@ export function UnggahHasil({
             )}
 
             <div>
-              <Tombol
-                jenis="tombol"
+              <Button
                 varian="primary"
                 onClick={handleUnggah}
                 disabled={!fileTerpilih || sedangKirim}
+                memuat={sedangKirim}
+                labelMemuat="Memverifikasi..."
               >
-                {sedangKirim ? 'Memverifikasi...' : 'Unggah dan Verifikasi Hasil'}
-              </Tombol>
+                Unggah dan Verifikasi Hasil
+              </Button>
             </div>
           </div>
         )

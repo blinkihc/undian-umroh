@@ -16,10 +16,11 @@ function parseArgs(): { w1: number; w2: number } {
   let w2 = 40;
 
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--w1' && args[i + 1]) {
-      w1 = parseInt(args[i + 1]!, 10);
-    } else if (args[i] === '--w2' && args[i + 1]) {
-      w2 = parseInt(args[i + 1]!, 10);
+    const nextArg = args[i + 1];
+    if (args[i] === '--w1' && nextArg !== undefined) {
+      w1 = parseInt(nextArg, 10);
+    } else if (args[i] === '--w2' && nextArg !== undefined) {
+      w2 = parseInt(nextArg, 10);
     }
   }
 
@@ -66,7 +67,10 @@ async function jalankan(): Promise<void> {
 
   for (let i = 0; i < 6; i++) {
     state = mulaiSlot(state, mulaiAt);
-    const slot = SLOT_URUTAN[i]!;
+    const slot = SLOT_URUTAN[i];
+    if (slot === undefined) {
+      continue;
+    }
     const pool = slot.wilayah === 'W1' ? poolW1 : poolW2;
     const sudahTerpilih = new Set(state.slotSelesai.map((s) => s.urut));
 

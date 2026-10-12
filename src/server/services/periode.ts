@@ -43,9 +43,9 @@ export type PeriodeDetail = PeriodeRingkas & {
   tahunAkhir: number;
   wilayah: { kode: KodeWilayah; nama: string; jumlahLolos: number }[];
   /** Diisi tiket kunci snapshot (10). */
-  snapshot: null;
-  /** Diisi tiket unggah hasil (15). */
-  hasil: null;
+  snapshot: { hash: string; lockedAt: string } | null;
+  /** Diisi tiket unggah hasil (17). */
+  hasil: { hasilHash: string; uploadedAt: string } | null;
   publishedAt: string | null;
   alasanBatal: string | null;
   createdAt: string;
@@ -78,6 +78,12 @@ const PILIH_DETAIL = {
       lockedAt: true,
       jumlahW1: true,
       jumlahW2: true,
+    },
+  },
+  hasilUndian: {
+    select: {
+      hasilHash: true,
+      uploadedAt: true,
     },
   },
 } as const satisfies Prisma.PeriodeSelect;
@@ -121,7 +127,13 @@ function keDetail(baris: BarisDetail): PeriodeDetail {
       baris.snapshot !== null
         ? { hash: baris.snapshot.hash, lockedAt: isoWib(baris.snapshot.lockedAt) }
         : null,
-    hasil: null,
+    hasil:
+      baris.hasilUndian !== null
+        ? {
+            hasilHash: baris.hasilUndian.hasilHash,
+            uploadedAt: isoWib(baris.hasilUndian.uploadedAt),
+          }
+        : null,
     publishedAt: baris.publishedAt === null ? null : isoWib(baris.publishedAt),
     alasanBatal: baris.alasanBatal,
     createdAt: isoWib(baris.createdAt),
@@ -379,9 +391,8 @@ export async function ubahPeriode(masukan: {
         konteks,
       });
     }
-    // Tiket 09: evaluasi ulang peserta saat batasLunas berubah.
-    if (beda.batasLunas !== undefined) {
-      await evaluasiUlangPeserta(tx, id, new Date(perubahan.batasLunas!));
+    if (beda.batasLunas !== undefined && perubahan.batasLunas !== undefined) {
+      await evaluasiUlangPeserta(tx, id, new Date(perubahan.batasLunas));
     }
     return keDetail(await tx.periode.findUniqueOrThrow({ where: { id }, select: PILIH_DETAIL }));
   });

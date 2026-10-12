@@ -1,21 +1,14 @@
-import { type NextRequest } from 'next/server';
-
 import { KunciPeriodeSchema, ambilPrasyaratKunci, kunciPeriode } from '@/server/services/kunci';
-import { requireRole } from '@/server/auth/halaman';
-import { withHandler } from '@/server/http';
-import { bacaJson } from '@/server/request';
+import { requireRole } from '@/server/auth/sesi';
+import { bacaJson, withHandler } from '@/server/http';
 
-type Params = { params: Promise<{ id: string }> };
-
-export const GET = withHandler(async (request: NextRequest, { params }: Params) => {
-  await requireRole(request, 'ADMIN');
-  const { id } = await params;
-  return ambilPrasyaratKunci(id);
+export const GET = withHandler<{ id: string }>(async (request, ctx) => {
+  await requireRole(request, ['ADMIN']);
+  return ambilPrasyaratKunci(ctx.params.id);
 });
 
-export const POST = withHandler(async (request: NextRequest, { params }: Params) => {
-  const { user, konteks } = await requireRole(request, 'ADMIN');
-  const { id } = await params;
+export const POST = withHandler<{ id: string }>(async (request, ctx) => {
+  const admin = await requireRole(request, ['ADMIN']);
   const data = await bacaJson(request, KunciPeriodeSchema);
-  return kunciPeriode({ aktor: user, id, data, konteks });
+  return kunciPeriode({ aktor: admin, id: ctx.params.id, data, konteks: ctx.konteks });
 });

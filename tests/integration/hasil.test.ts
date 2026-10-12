@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { POST as hasilPost } from '@/app/api/periode/[id]/hasil/route';
 import { POST as kunciPost } from '@/app/api/periode/[id]/kunci/route';
@@ -26,6 +26,10 @@ beforeAll(async () => {
   operator = await buatPengguna({ peran: 'OPERATOR' });
   cookieAdmin = await cookieMasuk(admin);
   cookieOperator = await cookieMasuk(operator);
+});
+
+beforeEach(async () => {
+  await bersihkanPeriode();
 });
 
 afterAll(async () => {
@@ -171,6 +175,47 @@ describe('Unggah dan Verifikasi Hasil Undian (Tiket 17)', () => {
     const pesertaW1 = snapshot.peserta.filter((p) => p.wilayah === 'W1');
     const pesertaW2 = snapshot.peserta.filter((p) => p.wilayah === 'W2');
 
+    const [pW1_0, pW1_1, pW1_2] = pesertaW1;
+    const [pW2_0, pW2_1, pW2_2] = pesertaW2;
+    if (!pW1_0 || !pW1_1 || !pW1_2 || !pW2_0 || !pW2_1 || !pW2_2) {
+      throw new Error('Peserta snapshot tidak lengkap untuk pengujian.');
+    }
+
+    function toPesertaUndian(
+      sp: (typeof snapshot.peserta)[number],
+      nama: string,
+      kec: string,
+    ) {
+      return {
+        urut: sp.urut,
+        wilayah: sp.wilayah,
+        nopMasked: sp.nop,
+        nikMasked: '1609xxxxxxxx0001',
+        nama,
+        alamatWp: 'Alamat WP',
+        alamatOp: 'Alamat OP',
+        kecamatan: kec,
+        kelurahan: 'Kelurahan',
+        lunas: [
+          '2022-06-01T00:00:00Z',
+          '2023-06-01T00:00:00Z',
+          '2024-06-01T00:00:00Z',
+          '2025-06-01T00:00:00Z',
+          '2026-06-01T00:00:00Z',
+        ],
+      };
+    }
+
+    const lockedMs = new Date(snapshot.lockedAt).getTime();
+    const tMulai = new Date(lockedMs + 5_000).toISOString();
+    const tSlot1 = new Date(lockedMs + 10_000).toISOString();
+    const tSlot2 = new Date(lockedMs + 15_000).toISOString();
+    const tSlot3 = new Date(lockedMs + 20_000).toISOString();
+    const tSlot4 = new Date(lockedMs + 25_000).toISOString();
+    const tSlot5 = new Date(lockedMs + 30_000).toISOString();
+    const tSlot6 = new Date(lockedMs + 35_000).toISOString();
+    const tSelesai = new Date(lockedMs + 40_000).toISOString();
+
     const state: StateUndian = {
       fase: 'SELESAI',
       slotAktifIndex: 5,
@@ -178,50 +223,48 @@ describe('Unggah dan Verifikasi Hasil Undian (Tiket 17)', () => {
         {
           urutan: 1,
           kode: 'W1-UTAMA',
-          urut: pesertaW1[0].urut,
-          peserta: { nop: pesertaW1[0].nop, nama: 'Pemenang 1', kecamatan: 'MUARADUA' },
-          diundiAt: '2026-10-12T10:05:00.000Z',
+          urut: pW1_0.urut,
+          pemenang: toPesertaUndian(pW1_0, 'Pemenang 1', 'MUARADUA'),
+          diundiAt: tSlot1,
         },
         {
           urutan: 2,
           kode: 'W1-C1',
-          urut: pesertaW1[1].urut,
-          peserta: { nop: pesertaW1[1].nop, nama: 'Cadangan 1 W1', kecamatan: 'MUARADUA' },
-          diundiAt: '2026-10-12T10:10:00.000Z',
+          urut: pW1_1.urut,
+          pemenang: toPesertaUndian(pW1_1, 'Cadangan 1 W1', 'MUARADUA'),
+          diundiAt: tSlot2,
         },
         {
           urutan: 3,
           kode: 'W1-C2',
-          urut: pesertaW1[2].urut,
-          peserta: { nop: pesertaW1[2].nop, nama: 'Cadangan 2 W1', kecamatan: 'MUARADUA' },
-          diundiAt: '2026-10-12T10:15:00.000Z',
+          urut: pW1_2.urut,
+          pemenang: toPesertaUndian(pW1_2, 'Cadangan 2 W1', 'MUARADUA'),
+          diundiAt: tSlot3,
         },
         {
           urutan: 4,
           kode: 'W2-UTAMA',
-          urut: pesertaW2[0].urut,
-          peserta: { nop: pesertaW2[0].nop, nama: 'Pemenang 2', kecamatan: 'BANDING' },
-          diundiAt: '2026-10-12T10:20:00.000Z',
+          urut: pW2_0.urut,
+          pemenang: toPesertaUndian(pW2_0, 'Pemenang 2', 'BANDING'),
+          diundiAt: tSlot4,
         },
         {
           urutan: 5,
           kode: 'W2-C1',
-          urut: pesertaW2[1].urut,
-          peserta: { nop: pesertaW2[1].nop, nama: 'Cadangan 1 W2', kecamatan: 'BANDING' },
-          diundiAt: '2026-10-12T10:25:00.000Z',
+          urut: pW2_1.urut,
+          pemenang: toPesertaUndian(pW2_1, 'Cadangan 1 W2', 'BANDING'),
+          diundiAt: tSlot5,
         },
         {
           urutan: 6,
           kode: 'W2-C2',
-          urut: pesertaW2[2].urut,
-          peserta: { nop: pesertaW2[2].nop, nama: 'Cadangan 2 W2', kecamatan: 'BANDING' },
-          diundiAt: '2026-10-12T10:30:00.000Z',
+          urut: pW2_2.urut,
+          pemenang: toPesertaUndian(pW2_2, 'Cadangan 2 W2', 'BANDING'),
+          diundiAt: tSlot6,
         },
       ],
-      pemenangTampil: null,
-      animasiMulaiAt: null,
-      dimulaiAt: '2026-10-12T10:00:00.000Z',
-      selesaiAt: '2026-10-12T10:35:00.000Z',
+      dimulaiAt: tMulai,
+      selesaiAt: tSelesai,
       catatanLokal: [],
     };
 
@@ -252,7 +295,7 @@ describe('Unggah dan Verifikasi Hasil Undian (Tiket 17)', () => {
     expect(body.status).toBe('DIUNDI');
     expect(body.hasilHash).toBe(fileHasil.hasilHash);
     expect(body.slot).toHaveLength(6);
-    expect(body.slot[0].kode).toBe('W1-UTAMA');
+    expect(body.slot[0]?.kode).toBe('W1-UTAMA');
 
     // Cek di DB
     const periodeDb = await getDb().periode.findUniqueOrThrow({
@@ -268,31 +311,37 @@ describe('Unggah dan Verifikasi Hasil Undian (Tiket 17)', () => {
     // Cek 6 slot
     expect(periodeDb.slotHasil).toHaveLength(6);
     const slot1 = periodeDb.slotHasil[0];
+    const slot2 = periodeDb.slotHasil[1];
+    expect(slot1).toBeDefined();
+    expect(slot2).toBeDefined();
+    if (!slot1 || !slot2) {
+      throw new Error('Slot hasil tidak lengkap di database.');
+    }
     expect(slot1.slot).toBe('W1_UTAMA');
     expect(slot1.status).toBe('MENANG');
     expect(slot1.penerimaAktif).toBe(true);
 
-    const slot2 = periodeDb.slotHasil[1];
     expect(slot2.slot).toBe('W1_C1');
     expect(slot2.status).toBe('CADANGAN');
     expect(slot2.penerimaAktif).toBe(false);
 
     // Cek log audit
+    const hasilUndianId = periodeDb.hasilUndian?.id ?? '';
     const auditLog = await getDb().auditLog.findFirst({
-      where: { targetId: periodeDb.hasilUndian?.id, aksi: 'HASIL_UNGGAH' },
+      where: { targetId: hasilUndianId, aksi: 'HASIL_UNGGAH' },
     });
     expect(auditLog).not.toBeNull();
 
     // Cek Immutabilitas: Trigger tolak_ubah_tabel_immutable pada tabel hasil_undian
     await expect(
       getDb().$executeRawUnsafe(
-        `UPDATE "hasil_undian" SET "hasil_hash" = 'manipulasi' WHERE "id" = '${periodeDb.hasilUndian?.id}'`,
+        `UPDATE "hasil_undian" SET "hasil_hash" = 'manipulasi' WHERE "id" = '${hasilUndianId}'`,
       ),
     ).rejects.toThrow();
 
     await expect(
       getDb().$executeRawUnsafe(
-        `DELETE FROM "hasil_undian" WHERE "id" = '${periodeDb.hasilUndian?.id}'`,
+        `DELETE FROM "hasil_undian" WHERE "id" = '${hasilUndianId}'`,
       ),
     ).rejects.toThrow();
 

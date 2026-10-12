@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  AlertTriangle,
   ArrowRight,
   Eye,
   EyeOff,
@@ -22,7 +21,6 @@ import {
   ambilPerangkatId,
   bacaPaketDariDb,
   bacaStateDariDb,
-  hapusDataUndianDariDb,
   simpanStateKeDb,
   type PaketTersimpan,
 } from '@/client/offline/db';
@@ -38,6 +36,7 @@ import {
 import { type PesertaUndian, type StateUndian } from '@/lib/draw/types';
 import { formatHashRingkas } from '@/lib/package/hash';
 import { SLOT_URUTAN } from '@/lib/package/kontrak';
+
 import { KartuPemenang } from './kartu-pemenang';
 import { RingkasanAkhir } from './ringkasan-akhir';
 

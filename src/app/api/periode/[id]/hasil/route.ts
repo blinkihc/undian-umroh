@@ -1,19 +1,13 @@
-import { type NextRequest } from 'next/server';
-
 import { requireRole } from '@/server/auth/sesi';
 import { AppError } from '@/server/errors';
 import { withHandler } from '@/server/http';
-import { ambilKonteks } from '@/server/request';
 import { unggahDanVerifikasiHasil } from '@/server/services/hasil';
-
-type Params = { params: Promise<{ id: string }> };
 
 const MAKS_BYTES_HASIL = 1024 * 1024; // 1 MB (API.md §3 Kunci, Paket, Hasil)
 
-export const POST = withHandler(async (request: NextRequest, { params }: Params) => {
+export const POST = withHandler<{ id: string }>(async (request, ctx) => {
   const pengguna = await requireRole(request, ['ADMIN', 'OPERATOR']);
-  const { id } = await params;
-  const konteks = ambilKonteks(request.headers);
+  const id = ctx.params.id;
 
   // Periksa batas ukuran file 1 MB
   const panjang = Number(request.headers.get('content-length') ?? 0);
@@ -35,5 +29,5 @@ export const POST = withHandler(async (request: NextRequest, { params }: Params)
     });
   }
 
-  return unggahDanVerifikasiHasil(id, jsonMentah, pengguna, konteks);
+  return unggahDanVerifikasiHasil(id, jsonMentah, pengguna, ctx.konteks);
 });

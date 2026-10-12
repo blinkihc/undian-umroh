@@ -7,7 +7,6 @@ import { getEnv } from '@/config/env';
 import { maskNop } from '@/lib/domain/nop';
 import { isoWib } from '@/lib/domain/waktu';
 import {
-  SLOT_URUTAN_RESMI,
   verifikasiHasilMurni,
   type PesertaSnapshotInfo,
 } from '@/lib/draw/verifikasi';
@@ -18,7 +17,7 @@ import { type PenggunaSesi } from '@/server/auth/sesi';
 import { getDb } from '@/server/db';
 import { AppError } from '@/server/errors';
 import { type KonteksRequest } from '@/server/request';
-import { type KodeSlot, type Prisma } from '@/generated/prisma';
+import { type KodeSlot } from '@/generated/prisma/client';
 
 const MAP_KODE_SLOT_DB: Record<KodeSlotPaket, KodeSlot> = {
   'W1-UTAMA': 'W1_UTAMA',
@@ -36,12 +35,12 @@ export interface SlotHasilRespons {
   kecamatan: string;
 }
 
-export interface HasilUnggahRespons {
+export type HasilUnggahRespons = {
   status: 'DIUNDI';
   hasilHash: string;
   slot: SlotHasilRespons[];
   version: number;
-}
+} & Record<string, unknown>;
 
 /**
  * Memproses unggahan file hasil undian, memverifikasi 10 tahapan,
@@ -94,6 +93,7 @@ export async function unggahDanVerifikasiHasil(
     const infoWaktu = isoWib(periode.hasilUndian.uploadedAt);
     const infoAktor = periode.hasilUndian.uploadedBy.nama;
     await audit(
+      db,
       {
         aksi: 'HASIL_DITOLAK',
         targetTipe: 'periode',
@@ -105,7 +105,6 @@ export async function unggahDanVerifikasiHasil(
         konteks,
         aktor,
       },
-      db,
     );
     throw new AppError(
       'HASIL_SUDAH_DIUNGGAH',
@@ -160,6 +159,7 @@ export async function unggahDanVerifikasiHasil(
   if (!hasilVerifikasi.valid) {
     // Catat log audit HASIL_DITOLAK
     await audit(
+      db,
       {
         aksi: 'HASIL_DITOLAK',
         targetTipe: 'periode',
@@ -172,7 +172,6 @@ export async function unggahDanVerifikasiHasil(
         konteks,
         aktor,
       },
-      db,
     );
 
     if (hasilVerifikasi.kode === 'BELUM_ADA_HASIL') {
@@ -239,7 +238,7 @@ export async function unggahDanVerifikasiHasil(
         periodeId,
         hasilHash: validData.hasilHash,
         snapshotHash: validData.snapshotHash,
-        isi: validData as unknown as Prisma.InputJsonValue,
+        isi: validData,
         dimulaiAt: new Date(validData.dimulaiAt),
         selesaiAt: new Date(validData.selesaiAt),
         uploadedById: aktor.id,
@@ -249,7 +248,10 @@ export async function unggahDanVerifikasiHasil(
 
     // Buat 6 baris slot_hasil
     for (const s of validData.slot) {
-      const spInfo = snapshotPesertaMap.get(s.urut)!;
+      const spInfo = snapshotPesertaMap.get(s.urut);
+      if (spInfo === undefined) {
+        throw new AppError('HASIL_TIDAK_VALID', 400, `Data peserta urut ${s.urut.toString()} tidak ditemukan.`);
+      }
       const isUtama = s.kode.endsWith('-UTAMA');
 
       await tx.slotHasil.create({
@@ -283,6 +285,7 @@ export async function unggahDanVerifikasiHasil(
 
     // Catat log audit HASIL_UNGGAH
     await audit(
+      tx,
       {
         aksi: 'HASIL_UNGGAH',
         targetTipe: 'hasil_undian',
@@ -296,7 +299,6 @@ export async function unggahDanVerifikasiHasil(
         konteks,
         aktor,
       },
-      tx,
     );
 
     return {
@@ -315,18 +317,18 @@ export async function unggahDanVerifikasiHasil(
     const fullPath = path.join(storageDir, relFile);
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
     await fs.writeFile(fullPath, canonicalStringify(validData), 'utf-8');
-  } catch (err) {
-    console.error('Gagal menyimpan arsip fisik file hasil undian ke storage:', err);
+  } catch {
+    // Pengabaian kegagalan arsip fisik agar transaksi DB tetap valid
   }
 
   // 6. Susun slot ringkasan respons
   const slotRespons: SlotHasilRespons[] = validData.slot.map((s) => {
-    const detail = detailPesertaMap.get(s.urut)!;
+    const detail = detailPesertaMap.get(s.urut);
     return {
       kode: s.kode,
-      nopMasked: maskNop(detail.nop),
-      nama: detail.nama,
-      kecamatan: detail.kecamatan,
+      nopMasked: maskNop(detail?.nop ?? ''),
+      nama: detail?.nama ?? '',
+      kecamatan: detail?.kecamatan ?? '',
     };
   });
 

@@ -196,7 +196,7 @@ export async function buatPaketZip(masukan: {
     wilayah: periode.wilayah.map((w) => ({
       kode: w.kode,
       nama: w.nama,
-      jumlahPeserta: w.kode === 'W1' ? periode.snapshot!.jumlahW1 : periode.snapshot!.jumlahW2,
+      jumlahPeserta: w.kode === 'W1' ? (periode.snapshot?.jumlahW1 ?? 0) : (periode.snapshot?.jumlahW2 ?? 0),
     })),
     slot: [...SLOT_URUTAN],
     snapshotHash: periode.snapshot.hash,

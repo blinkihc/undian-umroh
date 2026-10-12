@@ -3,6 +3,8 @@
  * Memakai Web Audio API untuk fallback sintetis yang selalu berfungsi offline tanpa dependensi luar.
  */
 
+import { secureRandomInt } from '@/lib/draw/random';
+
 export class PengelolaAudio {
   private ctx: AudioContext | null = null;
   private bisu = false;
@@ -13,10 +15,8 @@ export class PengelolaAudio {
 
   private inisialisasi(): void {
     if (this.ctx === null && typeof window !== 'undefined') {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (AudioCtx) {
-        this.ctx = new AudioCtx();
-      }
+      const AudioCtx = window.AudioContext;
+      this.ctx = new AudioCtx();
     }
     if (this.ctx && this.ctx.state === 'suspended') {
       void this.ctx.resume();
@@ -46,7 +46,7 @@ export class PengelolaAudio {
       this.putarSuaraMenunggu();
     } else if (fase === 'MENGACAK') {
       this.putarSuaraMengacak();
-    } else if (fase === 'PEMENANG') {
+    } else {
       this.putarSuaraPemenang();
     }
   }
@@ -84,7 +84,7 @@ export class PengelolaAudio {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(440 + Math.random() * 200, this.ctx.currentTime);
+        osc.frequency.setValueAtTime(440 + secureRandomInt(0, 200), this.ctx.currentTime);
         gain.gain.setValueAtTime(0.07, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
 

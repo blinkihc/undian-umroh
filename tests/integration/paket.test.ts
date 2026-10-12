@@ -1,5 +1,5 @@
 import { strFromU8, unzipSync } from 'fflate';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { GET as paketGet } from '@/app/api/periode/[id]/paket/route';
 import { POST as kunciPost } from '@/app/api/periode/[id]/kunci/route';
@@ -18,7 +18,7 @@ import { bersihkanPeriode, buatPeriodeTes } from './helpers/periode';
 
 let admin: PenggunaTes;
 let cookieAdmin: string;
-let cookieOperator: string;
+let _cookieOperator: string;
 
 async function cookieMasuk(pengguna: PenggunaTes): Promise<string> {
   const { cookie } = await masuk(pengguna.username, pengguna.password);
@@ -30,7 +30,11 @@ beforeAll(async () => {
   admin = await buatPengguna({ peran: 'ADMIN' });
   const operator = await buatPengguna({ peran: 'OPERATOR' });
   cookieAdmin = await cookieMasuk(admin);
-  cookieOperator = await cookieMasuk(operator);
+  _cookieOperator = await cookieMasuk(operator);
+});
+
+beforeEach(async () => {
+  await bersihkanPeriode();
 });
 
 afterAll(async () => {
@@ -175,10 +179,20 @@ describe('Unduh Paket Undian (Tiket 11)', () => {
       expect.arrayContaining(['manifest.json', 'meta.json', 'snapshot.json', 'tema/theme.json']),
     );
 
-    const manifestRaw = strFromU8(unzipped['manifest.json']!);
-    const metaRaw = strFromU8(unzipped['meta.json']!);
-    const snapshotRaw = strFromU8(unzipped['snapshot.json']!);
-    const themeRaw = strFromU8(unzipped['tema/theme.json']!);
+    const manifestBytes = unzipped['manifest.json'];
+    const metaBytes = unzipped['meta.json'];
+    const snapshotBytes = unzipped['snapshot.json'];
+    const themeBytes = unzipped['tema/theme.json'];
+
+    expect(manifestBytes).toBeDefined();
+    expect(metaBytes).toBeDefined();
+    expect(snapshotBytes).toBeDefined();
+    expect(themeBytes).toBeDefined();
+
+    const manifestRaw = strFromU8(manifestBytes ?? new Uint8Array());
+    const metaRaw = strFromU8(metaBytes ?? new Uint8Array());
+    const snapshotRaw = strFromU8(snapshotBytes ?? new Uint8Array());
+    const themeRaw = strFromU8(themeBytes ?? new Uint8Array());
 
     // Validasi skema ketat
     const manifest = ManifestSchema.parse(JSON.parse(manifestRaw));

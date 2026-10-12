@@ -317,11 +317,11 @@ export async function kunciPeriode(masukan: {
         kecamatan: p.kecamatan,
         kelurahan: p.kelurahan,
         lunas: [
-          isoWib(p.lunas2022!),
-          isoWib(p.lunas2023!),
-          isoWib(p.lunas2024!),
-          isoWib(p.lunas2025!),
-          isoWib(p.lunas2026!),
+          p.lunas2022 ? isoWib(p.lunas2022) : '',
+          p.lunas2023 ? isoWib(p.lunas2023) : '',
+          p.lunas2024 ? isoWib(p.lunas2024) : '',
+          p.lunas2025 ? isoWib(p.lunas2025) : '',
+          p.lunas2026 ? isoWib(p.lunas2026) : '',
         ],
       })),
     };

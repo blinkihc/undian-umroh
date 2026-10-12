@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { POST as batalPost } from '@/app/api/periode/[id]/batal/route';
 import { POST as imporPost } from '@/app/api/periode/[id]/impor/route';
@@ -17,7 +17,7 @@ import { bersihkanPeriode, buatPeriodeTes } from './helpers/periode';
 
 let admin: PenggunaTes;
 let cookieAdmin: string;
-let cookieOperator: string;
+let _cookieOperator: string;
 
 async function cookieMasuk(pengguna: PenggunaTes): Promise<string> {
   const { cookie } = await masuk(pengguna.username, pengguna.password);
@@ -29,7 +29,11 @@ beforeAll(async () => {
   admin = await buatPengguna({ peran: 'ADMIN' });
   const operator = await buatPengguna({ peran: 'OPERATOR' });
   cookieAdmin = await cookieMasuk(admin);
-  cookieOperator = await cookieMasuk(operator);
+  _cookieOperator = await cookieMasuk(operator);
+});
+
+beforeEach(async () => {
+  await bersihkanPeriode();
 });
 
 afterAll(async () => {

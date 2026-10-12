@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { canonicalStringify, sha256Hex } from '@/lib/package/hash';
-import { type KodeSlotPaket } from '@/lib/package/kontrak';
+
 import { type StateUndian } from './types';
 
 export const SlotHasilItemSchema = z
@@ -53,8 +53,11 @@ export type HasilUndianTanpaHash = z.infer<typeof HasilUndianTanpaHashSchema>;
 /**
  * Menghitung hash SHA-256 kanonik dari file hasil (tanpa kunci hasilHash itu sendiri, API.md §4.5).
  */
-export async function hitungHasilHash(isiTanpaHash: HasilUndianTanpaHash): Promise<string> {
-  const jsonKanonik = canonicalStringify(isiTanpaHash);
+export async function hitungHasilHash(
+  isi: HasilUndianTanpaHash | (HasilUndianTanpaHash & { hasilHash?: string }),
+): Promise<string> {
+  const { hasilHash: _, ...tanpaHash } = isi as { hasilHash?: string } & HasilUndianTanpaHash;
+  const jsonKanonik = canonicalStringify(tanpaHash);
   return sha256Hex(jsonKanonik);
 }
 
@@ -76,7 +79,7 @@ export async function bangunFileHasil(params: {
 
   const slotItems = state.slotSelesai.map((s) => ({
     urutan: s.urutan,
-    kode: s.kode as KodeSlotPaket,
+    kode: s.kode,
     urut: s.urut,
     diundiAt: s.diundiAt,
   }));
