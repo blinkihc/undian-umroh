@@ -9,6 +9,7 @@ export async function bersihkanPeriode(): Promise<void> {
   const db = getDb();
   await db.peserta.deleteMany();
   await db.impor.deleteMany();
+  await db.kecamatanWilayah.deleteMany();
   await db.wilayah.deleteMany();
   await db.periode.deleteMany();
 }

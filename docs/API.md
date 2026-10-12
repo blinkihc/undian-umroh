@@ -224,7 +224,9 @@ Request:
 ```json
 { "version": 4, "pemetaan": [ { "kecamatan": "MUARADUA KISAM", "wilayah": "W1" }, { "kecamatan": "BUAY RUNJUNG", "wilayah": "W2" } ] }
 ```
-Validation: periode `DRAF`; setiap `kecamatan` ada di data; `wilayah` ∈ `W1|W2|null`; tanpa duplikat kecamatan.
+Validation: periode `DRAF` (selain itu `409 PERIODE_TERKUNCI`); `version` basi → `409 CONFLICT`; setiap `kecamatan` ada di impor aktif (selain itu `400 VALIDASI_GAGAL` dengan `details.kecamatanTidakDikenal`); `wilayah` ∈ `W1|W2|null`; tanpa duplikat kecamatan; 1–1.000 item.
+Kecamatan yang tidak dikirim tidak berubah (pembaruan sebagian). Perubahan nyata menaikkan `periode.version` dan menulis audit `WILAYAH_PETAKAN` (`jumlahDiubah`, `perubahan[]{kecamatan, lama, baru}` maks. 50). Response `200`: bentuk sama dengan `GET`.
+`GET` juga memuat `status` periode dan `ringkasan` (`W1`/`W2`/`BELUM_DIPETAKAN`: `jumlahKecamatan`, `jumlahLolos`); kecamatan terurut belum dipetakan dulu lalu abjad; `mirip` = kecamatan lain yang sama setelah spasi/tanda baca dibuang atau berbeda satu huruf (nama ≥ 6 huruf). Hanya kecamatan di impor aktif yang ditampilkan; pemetaan lama tetap tersimpan saat impor ulang. Nama tampilan wilayah diubah lewat `PATCH /api/periode/:id` (`namaWilayah`).
 
 ### Kunci, Paket, Hasil
 

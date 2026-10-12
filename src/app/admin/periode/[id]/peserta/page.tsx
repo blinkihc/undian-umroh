@@ -113,7 +113,11 @@ export default async function HalamanPeserta({
           </a>
         </div>
       ) : (
-        <RingkasanPeserta ringkasan={ringkasan} namaWilayah={namaWilayah} />
+        <RingkasanPeserta
+          ringkasan={ringkasan}
+          namaWilayah={namaWilayah}
+          hrefWilayah={`/admin/periode/${periode.id}/wilayah`}
+        />
       )}
       {ringkasan !== null && halaman !== null && (
         <section aria-labelledby="judul-tabel-peserta" className="space-y-4">

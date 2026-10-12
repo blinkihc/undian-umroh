@@ -11,6 +11,7 @@ import { type ReactElement } from 'react';
 function daftarTab(id: string): { href: string; label: string }[] {
   return [
     { href: `/admin/periode/${id}/peserta`, label: 'Data Peserta' },
+    { href: `/admin/periode/${id}/wilayah`, label: 'Wilayah' },
     { href: `/admin/periode/${id}`, label: 'Pengaturan' },
   ];
 }

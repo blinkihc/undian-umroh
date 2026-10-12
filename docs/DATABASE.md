@@ -473,7 +473,7 @@ Filter log audit.
 - Tabel `peserta`, `kecamatan_wilayah`, `periode.batas_lunas` hanya boleh berubah saat `status = DRAF`.
 - `snapshot`, `snapshot_peserta`, `hasil_undian` **immutable**: tidak ada UPDATE/DELETE di kode aplikasi. Trigger PostgreSQL `BEFORE UPDATE OR DELETE` menolak perubahan (dibuat di migrasi).
 - `audit_log` append-only: trigger menolak UPDATE/DELETE (per baris) dan TRUNCATE (per pernyataan) lewat fungsi `tolak_ubah_tabel_immutable()` yang dipakai ulang oleh tabel immutable lain. Tes membuat akun dengan username acak dan tidak menghapus data; pembersihan massal di tes memakai `session_replication_role = replica`.
-- Tabel yang sudah ada di skema: `pengguna`, `audit_log` (tiket 02), `periode`, `wilayah` (tiket 04), `impor`, `peserta` (tiket 05); tabel lain menyusul bersama tiket pemiliknya. Kolom `periode.tema_id` ditambahkan oleh tiket tema.
+- Tabel yang sudah ada di skema: `pengguna`, `audit_log` (tiket 02), `periode`, `wilayah` (tiket 04), `impor`, `peserta` (tiket 05), `kecamatan_wilayah` (tiket 08; `wilayah_id` selalu wilayah periode yang sama, dijaga layanan); tabel lain menyusul bersama tiket pemiliknya. Kolom `periode.tema_id` ditambahkan oleh tiket tema.
 - Pembuatan periode memakai `pg_advisory_xact_lock(hashtext('periode:satu-aktif'))` agar dua permintaan bersamaan diproses bergiliran dengan pesan `PERIODE_AKTIF_SUDAH_ADA` yang jelas; index `periode_satu_aktif` tetap penjaga terakhir.
 - `slot_hasil`: hanya kolom status yang boleh berubah, lewat service pemenang dengan `version`.
 

@@ -22,6 +22,7 @@ import { type PenggunaSesi } from '@/server/auth/sesi';
 import { getDb } from '@/server/db';
 import { AppError } from '@/server/errors';
 import { type KonteksRequest } from '@/server/request';
+import { petaKecamatanWilayah } from '@/server/services/wilayah';
 
 /** Satu baris tabel peserta admin (API.md GET /api/periode/:id/peserta). Tanpa NIK utuh. */
 export type PesertaApi = {
@@ -75,14 +76,6 @@ const KOLOM_LUNAS = {
   2025: 'lunas2025',
   2026: 'lunas2026',
 } as const;
-
-/**
- * Kecamatan yang sudah dipetakan ke wilayah. Belum ada pemetaan sampai tiket 08, sehingga semua
- * kecamatan masih "belum dipetakan".
- */
-async function petaKecamatanWilayah(_periodeId: string): Promise<Map<string, KodeWilayah>> {
-  return Promise.resolve(new Map<string, KodeWilayah>());
-}
 
 function teksLunasRaw(nilai: Prisma.JsonValue): Record<string, string> {
   const hasil: Record<string, string> = {};

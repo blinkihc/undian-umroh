@@ -45,9 +45,12 @@ function Kartu({
 export function RingkasanPeserta({
   ringkasan,
   namaWilayah,
+  hrefWilayah,
 }: {
   ringkasan: RingkasanPesertaTampil;
   namaWilayah: { W1: string; W2: string };
+  /** Tautan ke tab Wilayah dari banner kecamatan belum terpetakan. */
+  hrefWilayah?: string;
 }): ReactElement {
   const perAlasan = Object.entries(ringkasan.gugurPerAlasan) as [KodeAlasan, number][];
   const belum = ringkasan.kecamatanBelumDipetakan.length;
@@ -80,6 +83,14 @@ export function RingkasanPeserta({
           keterangan="Tidak menggugurkan"
         />
       </section>
+      {belum > 0 && hrefWilayah !== undefined && (
+        <a
+          href={hrefWilayah}
+          className="inline-block text-sm font-medium text-primary-700 underline underline-offset-2"
+        >
+          Petakan kecamatan ke wilayah
+        </a>
+      )}
       {belum > 0 && (
         <Alert
           jenis="peringatan"

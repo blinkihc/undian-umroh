@@ -76,10 +76,11 @@ model Periode {
   createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  createdBy Pengguna  @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy Pengguna           @relation(fields: [createdById], references: [id], onDelete: Restrict)
   wilayah   Wilayah[]
   impor     Impor[]
   peserta   Peserta[]
+  kecamatan KecamatanWilayah[]
 
   @@map("periode")
 }
@@ -157,10 +158,27 @@ model Wilayah {
   kode      KodeWilayah
   nama      String
 
-  periode Periode @relation(fields: [periodeId], references: [id], onDelete: Restrict)
+  periode   Periode            @relation(fields: [periodeId], references: [id], onDelete: Restrict)
+  kecamatan KecamatanWilayah[]
 
   @@unique([periodeId, kode])
   @@map("wilayah")
+}
+
+/// Pemetaan kecamatan (hasil normalizeKecamatan) ke wilayah. Baris dibuat otomatis untuk setiap
+/// kecamatan yang muncul saat impor; pemetaan lama dipertahankan saat impor ulang.
+model KecamatanWilayah {
+  id        String  @id @default(cuid(2))
+  periodeId String  @map("periode_id")
+  kecamatan String
+  /// Null = belum dipetakan. Selalu wilayah milik periode yang sama (dijaga layanan wilayah).
+  wilayahId String? @map("wilayah_id")
+
+  periode Periode  @relation(fields: [periodeId], references: [id], onDelete: Restrict)
+  wilayah Wilayah? @relation(fields: [wilayahId], references: [id], onDelete: Restrict)
+
+  @@unique([periodeId, kecamatan])
+  @@map("kecamatan_wilayah")
 }
 
 /// Jejak aksi penting. Append-only: trigger database menolak UPDATE, DELETE, dan TRUNCATE.

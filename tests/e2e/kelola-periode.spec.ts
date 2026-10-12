@@ -115,6 +115,46 @@ test.describe('Kelola periode', () => {
     expect(await hitungAudit('IMPOR_BERHASIL', admin)).toBe(2);
   });
 
+  test('Admin memetakan kecamatan ke wilayah dan mengganti nama tampilan wilayah', async ({
+    page,
+  }) => {
+    const admin = await masuk(page, 'ADMIN');
+    await page.getByRole('link', { name: JUDUL }).click();
+    await page
+      .getByRole('navigation', { name: 'Menu periode' })
+      .getByRole('link', { name: 'Wilayah' })
+      .click();
+
+    await expect(page.getByText('3 kecamatan belum dipetakan (7 peserta lolos).')).toBeVisible();
+    for (const [kecamatan, wilayah] of [
+      ['MUARADUA', 'Wilayah Barat'],
+      ['BUAY RUNJUNG', 'Wilayah 2'],
+      ['KISAM TINGGI', 'Wilayah 2'],
+    ] as const) {
+      await page
+        .getByRole('radiogroup', { name: `Wilayah untuk ${kecamatan}` })
+        .getByRole('radio', { name: wilayah })
+        .click();
+    }
+    await expect(page.getByText('3 perubahan belum disimpan.')).toBeVisible();
+    await page.getByRole('button', { name: 'Simpan Pemetaan' }).click();
+    await expect(page.getByText('Pemetaan 3 kecamatan disimpan.')).toBeVisible();
+    await expect(page.getByText(/kecamatan belum dipetakan/)).toHaveCount(0);
+    const w2 = page.getByRole('region', { name: 'Ringkasan Wilayah 2' });
+    await expect(w2).toContainText('2 kecamatan · 4 peserta lolos');
+
+    await w2.getByRole('button', { name: 'Ubah nama' }).click();
+    await w2.getByLabel('Nama tampilan').fill('Wilayah Timur');
+    await w2.getByRole('button', { name: 'Simpan' }).click();
+    await expect(w2).toContainText('Wilayah Timur');
+    await page.screenshot({
+      path: 'test-results/visual/admin-wilayah-desktop.png',
+      fullPage: true,
+    });
+    expect(await hitungAudit('WILAYAH_PETAKAN', admin)).toBe(1);
+    expect(await hitungAudit('WILAYAH_NAMA_UBAH', admin)).toBe(1);
+  });
+
   test('dasbor menampilkan periode dengan chip Draf dan menahan periode kedua', async ({
     page,
   }) => {

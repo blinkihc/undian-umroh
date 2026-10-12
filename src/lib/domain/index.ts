@@ -9,5 +9,6 @@ export * from './periode';
 export * from './peserta';
 export * from './syarat';
 export * from './tanggal-lunas';
+export * from './wilayah';
 export * from './result';
 export * from './waktu';

@@ -13,6 +13,7 @@ import {
   isoWib,
   periksaHeader,
   type KodeAlasan,
+  type KodeWilayah,
   type PesertaTerevaluasi,
   type PetaKolom,
   type RingkasanImpor,
@@ -25,6 +26,7 @@ import { bacaFileImpor } from '@/server/impor/baca-file';
 import { type FormImpor } from '@/server/impor/form';
 import { enkripsiNik } from '@/server/nik';
 import { type KonteksRequest } from '@/server/request';
+import { petaKecamatanWilayah, sinkronkanKecamatan } from '@/server/services/wilayah';
 
 /** Ringkasan data peserta periode (API.md POST /api/periode/:id/impor dan GET …/ringkasan). */
 export type RingkasanPeserta = {
@@ -75,9 +77,21 @@ function urutkanPerAlasan(isi: Record<string, number>): Partial<Record<KodeAlasa
   return hasil;
 }
 
-function keRingkasan(impor: BarisImpor, version: number): RingkasanPeserta {
+function keRingkasan(
+  impor: BarisImpor,
+  version: number,
+  peta: Map<string, KodeWilayah>,
+): RingkasanPeserta {
   const tersimpan = RingkasanTersimpanSchema.parse(impor.ringkasan);
-  // Pemetaan kecamatan ke wilayah belum ada (tiket 08): semua lolos masih belum dipetakan.
+  // Lolos per wilayah dihitung dari ringkasan per kecamatan + pemetaan terkini (API.md).
+  const lolosPerWilayah = { W1: 0, W2: 0, BELUM_DIPETAKAN: 0 };
+  const belum: string[] = [];
+  for (const [kecamatan, jumlah] of Object.entries(tersimpan.lolosPerKecamatan)) {
+    const wilayah = peta.get(kecamatan);
+    lolosPerWilayah[wilayah ?? 'BELUM_DIPETAKAN'] += jumlah;
+    if (wilayah === undefined) belum.push(kecamatan);
+  }
+  // Peserta lolos selalu punya kecamatan (KECAMATAN_KOSONG menggugurkan), jadi totalnya sama.
   return {
     imporId: impor.id,
     namaFile: impor.namaFile,
@@ -85,12 +99,12 @@ function keRingkasan(impor: BarisImpor, version: number): RingkasanPeserta {
     totalBaris: impor.totalBaris,
     jumlahLolos: impor.jumlahLolos,
     jumlahGugur: impor.jumlahGugur,
-    lolosPerWilayah: { W1: 0, W2: 0, BELUM_DIPETAKAN: impor.jumlahLolos },
+    lolosPerWilayah,
     // jsonb tidak menjaga urutan kunci: susun ulang menurut urutan kode dan abjad kecamatan.
     gugurPerAlasan: urutkanPerAlasan(tersimpan.gugurPerAlasan),
     nikTidakValid: tersimpan.nikTidakValid,
     nopGanda: tersimpan.nopGanda,
-    kecamatanBelumDipetakan: Object.keys(tersimpan.lolosPerKecamatan).sort(),
+    kecamatanBelumDipetakan: belum.sort(),
     version,
   };
 }
@@ -115,7 +129,8 @@ export async function ambilRingkasanPeserta(periodeId: string): Promise<Ringkasa
     throw new AppError('TIDAK_DITEMUKAN', 404, 'Periode tidak ditemukan.');
   }
   const [aktif] = periode.impor;
-  return aktif === undefined ? null : keRingkasan(aktif, periode.version);
+  if (aktif === undefined) return null;
+  return keRingkasan(aktif, periode.version, await petaKecamatanWilayah(periodeId));
 }
 
 type PeriodeImpor = { id: string; status: string; version: number; batasLunas: Date };
@@ -332,6 +347,8 @@ export async function imporFile(masukan: {
       },
       konteks,
     });
-    return keRingkasan(impor, periode.version + 1);
+    // Kecamatan baru muncul sebagai belum dipetakan; pemetaan lama dipertahankan (DATABASE §3).
+    await sinkronkanKecamatan(tx, periodeId, Object.keys(ringkasan.lolosPerKecamatan));
+    return keRingkasan(impor, periode.version + 1, await petaKecamatanWilayah(periodeId, tx));
   }, OPSI_TRANSAKSI);
 }

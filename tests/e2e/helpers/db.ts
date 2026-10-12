@@ -46,6 +46,7 @@ export async function kosongkanPeriode(): Promise<void> {
   try {
     await klien.query('DELETE FROM peserta');
     await klien.query('DELETE FROM impor');
+    await klien.query('DELETE FROM kecamatan_wilayah');
     await klien.query('DELETE FROM wilayah');
     await klien.query('DELETE FROM periode');
   } finally {
