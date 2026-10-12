@@ -15,6 +15,7 @@ function daftarTab(id: string): { href: string; label: string }[] {
     { href: `/admin/periode/${id}/kunci`, label: 'Kunci Data' },
     { href: `/admin/periode/${id}/paket`, label: 'Paket Undian' },
     { href: `/admin/periode/${id}/hasil`, label: 'Unggah Hasil' },
+    { href: `/admin/periode/${id}/pemenang`, label: 'Pemenang' },
     { href: `/admin/periode/${id}`, label: 'Pengaturan' },
   ];
 }
