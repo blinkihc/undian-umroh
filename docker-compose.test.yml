@@ -1,0 +1,21 @@
+# PostgreSQL 16 khusus tes integrasi (ENVIRONMENT.md: DATABASE_URL_TEST, port 5433).
+# Hanya untuk pengembangan/CI: kredensial sederhana, hanya mendengarkan di loopback,
+# data di tmpfs sehingga hilang saat container berhenti.
+name: undian-umroh-test
+
+services:
+  db-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: undian
+      POSTGRES_PASSWORD: undian
+      POSTGRES_DB: undian_test
+    ports:
+      - '127.0.0.1:5433:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U undian -d undian_test']
+      interval: 2s
+      timeout: 3s
+      retries: 30

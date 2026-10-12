@@ -6,7 +6,7 @@
 
 ### Added
 
-- (kosong — mulai pengembangan aplikasi setelah dokumentasi disetujui)
+- Kerangka aplikasi (tiket 01): Next.js 16 App Router, TypeScript strict, Tailwind v4 dengan token `DESIGN_SYSTEM.md`, font lokal, ESLint (batas modul murni, larangan `Math.random` di area undian, larangan `console`), Prettier, Vitest (node + jsdom), Playwright, PostgreSQL tes via `docker-compose.test.yml`, validasi env gagal cepat, dan beranda publik bermerek (`lang="id"`). Versi dasar dicatat di Decision 022.
 
 ## [0.1.0] - 2026-10-11
 

@@ -89,22 +89,22 @@ Tujuan: riwayat git bersih dan terpisah dari repo induk.
 Rujukan: `ARCHITECTURE.md` §3, §7–8 · `CODE_STYLE.md` · `DESIGN_SYSTEM.md` §3–7 · `ENVIRONMENT.md` · `TESTING.md` §3, §7
 
 Implementasi:
-- [ ] Inisialisasi Next.js (App Router) + TypeScript `strict` + `noUncheckedIndexedAccess`; paket di-pin exact
-- [ ] Tailwind dengan token warna, font, spasi, radius, bayangan dari `DESIGN_SYSTEM.md`
-- [ ] Font di-host lokal: Plus Jakarta Sans, Inter, JetBrains Mono (tanpa CDN)
-- [ ] ESLint (flat config): `import/order`, `no-restricted-imports` (batas `src/lib`, `server-only`), `no-restricted-properties` (`Math.random` di draw dan offline), `no-console`, `react/no-danger`
-- [ ] Prettier + plugin Tailwind; `npm run format`
-- [ ] Vitest (node dan jsdom) dan Playwright (Chromium/Edge)
-- [ ] `docker-compose.test.yml` untuk PostgreSQL test (port 5433)
-- [ ] `.env.example` lengkap dan `src/config/env.ts` (zod, gagal cepat)
-- [ ] Salin logo ke `public/brand/logo-okus.png` dan `logo-bapenda.png`
-- [ ] Layout dasar: header logo Pemkab + Bapenda, beranda publik placeholder bahasa Indonesia, `lang="id"`
+- [x] Inisialisasi Next.js (App Router) + TypeScript `strict` + `noUncheckedIndexedAccess`; paket di-pin exact
+- [x] Tailwind dengan token warna, font, spasi, radius, bayangan dari `DESIGN_SYSTEM.md`
+- [x] Font di-host lokal: Plus Jakarta Sans, Inter, JetBrains Mono (tanpa CDN)
+- [x] ESLint (flat config): `import/order`, `no-restricted-imports` (batas `src/lib`, `server-only`), `no-restricted-properties` (`Math.random` di draw dan offline), `no-console`, `react/no-danger`
+- [x] Prettier + plugin Tailwind; `npm run format`
+- [x] Vitest (node dan jsdom) dan Playwright (Chromium/Edge)
+- [x] `docker-compose.test.yml` untuk PostgreSQL test (port 5433)
+- [x] `.env.example` lengkap dan `src/config/env.ts` (zod, gagal cepat)
+- [x] Salin logo ke `public/brand/logo-okus.png` dan `logo-bapenda.png`
+- [x] Layout dasar: header logo Pemkab + Bapenda, beranda publik placeholder bahasa Indonesia, `lang="id"`
 - [ ] Skrip `package.json` sesuai `TESTING.md` §7: `lint`, `typecheck`, `test`, `test:unit`, `test:int`, `test:e2e`, `test:coverage`, `build`, `format`, `db:*`
 
 Tes dan verifikasi:
-- [ ] Smoke test Vitest lulus
-- [ ] Satu tes Playwright membuka beranda
-- [ ] `npm run lint`, `typecheck`, `build` lulus
+- [x] Smoke test Vitest lulus
+- [x] Satu tes Playwright membuka beranda
+- [x] `npm run lint`, `typecheck`, `build` lulus
 - [ ] `npm run dev` menampilkan beranda bermerek (diverifikasi pengguna)
 
 ---

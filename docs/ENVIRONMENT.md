@@ -119,6 +119,11 @@ BACKUP_DIR=./.backups
 - Keep local and production configuration separate
 - Document newly introduced variables
 
+Validasi saat start:
+- `src/config/env.ts` memvalidasi variabel aplikasi (`NODE_ENV`, `APP_URL`, `DATABASE_URL`, tiga kunci base64 32 byte, `STORAGE_DIR`, serta `LOG_LEVEL`, `TZ`, `AI_*`, `NEXT_PUBLIC_*` yang opsional). Hook `src/instrumentation.ts` menjalankannya saat server mulai; bila salah, pesan Indonesia berisi nama variabel (bukan nilainya) ditulis ke stderr dan proses keluar dengan kode 1.
+- `POSTGRES_*` (Compose), `BACKUP_*` (skrip host), dan `SEED_*` (skrip seed) dibaca oleh konsumennya sendiri dan tidak divalidasi oleh aplikasi.
+- Pengembangan lokal: salin `.env.example` ke `.env`, lalu isi `AUTH_SECRET`, `NIK_ENCRYPTION_KEY`, dan `CAPTCHA_HMAC_KEY` (base64 dari 32 byte acak) sebelum `npm run dev`.
+
 Tambahan:
 - Variabel baru wajib ditambahkan ke tabel di atas, `.env.example`, `src/config/env.ts`, dan (jika sensitif) `SECURITY.md` §4.
 - Nilai di `.env.example` tidak boleh berupa rahasia nyata, termasuk kata sandi yang dipakai di produksi.

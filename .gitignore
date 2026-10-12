@@ -11,5 +11,7 @@ uploads/
 coverage/
 playwright-report/
 test-results/
+next-env.d.ts
+*.tsbuildinfo
 # Data contoh asli wajib pajak (jangan pernah di-commit)
 docs/contoh data.*

@@ -713,3 +713,38 @@ Undian tetap berjalan tanpa internet.
 
 Tradeoff:
 Siapa pun dengan akses fisik ke laptop yang sudah memuat paket dapat membuka layar; dimitigasi dengan laptop khusus dan akun Windows terkontrol (`DEPLOYMENT.md`).
+
+---
+
+## Decision 022
+
+Title:
+Versi dasar tumpukan teknologi dan cara token desain diimplementasikan
+
+Date:
+2026-10-12
+
+Status:
+Accepted
+
+Context:
+Saat inisialisasi proyek (tiket 01) versi pasti tiap paket harus dipin (`ARCHITECTURE.md` §3). Beberapa rilis terbaru tidak serasi satu sama lain: `typescript-eslint` mendukung TypeScript sebelum 6.1, dan `eslint-plugin-import` (dibawa `eslint-config-next`) baru mendukung ESLint sampai 9.
+
+Decision:
+Versi dipin exact di `package.json`: Next.js 16.4.0, React 19.3.0, TypeScript 5.9.3 (bukan 7.x), ESLint 9.39.5 (bukan 10.x), typescript-eslint 8.71.1, Tailwind CSS 4.3.3, Vitest 5.0.3 dengan Vite 8.3.4 dan `@vitejs/plugin-react` 6.1.2, Playwright 1.64.0, Prettier 3.9.10, zod 4.6.6, lucide-react 1.55.0. Token desain `DESIGN_SYSTEM.md` §3–7 diimplementasikan CSS-first lewat blok `@theme` di `src/app/globals.css` (Tailwind v4 tidak memakai `tailwind.config`), dengan palet, radius, dan bayangan bawaan Tailwind dikosongkan agar hanya token proyek yang tersedia. Font (Plus Jakarta Sans, Inter, JetBrains Mono; subset latin, SIL OFL 1.1) disalin dari paket `@fontsource-variable/*` ke `src/app/fonts/` dan dimuat dengan `next/font/local`, tanpa CDN. Env divalidasi di `src/config/env.ts` dan dijalankan saat server mulai lewat hook `instrumentation`; karena Next.js hanya mencatat error hook lalu tetap hidup, proses dihentikan sendiri dengan kode 1.
+
+Alternatives:
+- TypeScript 7.x dan ESLint 10.x (terbaru, tetapi belum didukung typescript-eslint dan eslint-plugin-import)
+- Tailwind v3 dengan `tailwind.config`
+- Memuat font lewat `@fontsource` CSS atau Google Fonts
+
+Reason:
+Memilih kombinasi yang saling didukung agar lint type-aware berjalan penuh dan build dapat direproduksi. Tailwind v4 adalah versi terkini dan token sebagai variabel CSS sejalan dengan `DESIGN_SYSTEM.md`. Font lokal wajib agar Layar Undian tetap utuh saat offline.
+
+Consequences:
+
+Positive:
+Seluruh toolchain berjalan tanpa peringatan kompatibilitas; kelas Tailwind di luar token tidak tersedia sehingga warna hex liar sulit masuk.
+
+Tradeoff:
+ESLint 9 sudah ditandai tidak lagi didukung oleh penerbitnya; migrasi ke ESLint 10 menunggu `eslint-plugin-import` (atau penggantinya) mendukungnya. `npm audit` melaporkan 5 kerentanan tingkat tinggi hanya pada rantai alat lint (`braces` lewat `eslint-config-next`); `npm audit --omit=dev` bersih. Naik versi TypeScript/ESLint nanti wajib lewat ADR baru.

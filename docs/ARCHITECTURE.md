@@ -262,8 +262,11 @@ undian-umroh/
 │   │   └── logger.ts             # pino
 │   ├── client/
 │   │   └── offline/              # idb store, loader paket, mesin layar undian
+│   ├── instrumentation.ts        # hook Next.js: validasi env saat server mulai
 │   └── config/
-│       └── env.ts                # validasi env dengan zod (lihat ENVIRONMENT.md)
+│       ├── env.ts                # validasi env dengan zod (lihat ENVIRONMENT.md)
+│       ├── startup.ts            # gagal cepat: pesan ke stderr lalu exit(1)
+│       └── brand.ts              # nama aplikasi, judul acara default, logo
 ├── tests/
 │   ├── unit/
 │   ├── integration/
@@ -273,6 +276,8 @@ undian-umroh/
 │   ├── Dockerfile
 │   └── Caddyfile
 ├── docker-compose.yml
+├── docker-compose.test.yml       # PostgreSQL 16 untuk test integrasi (port 5433)
+├── eslint.config.mjs             # aturan batas modul, Math.random, console
 ├── .env.example
 └── package.json
 ```

@@ -1,7 +1,7 @@
 # Design System
 
 > Status: Draf v0.1. Berlaku untuk tiga permukaan: **Panel** (admin & operator), **Layar Undian** (proyektor), **Publik** (`/pemenang`, `/cek`).
-> Implementasi: token di `tailwind.config` / CSS variables. Komponen UI wajib memakai token, bukan nilai hex langsung.
+> Implementasi: token sebagai variabel CSS di blok `@theme` pada `src/app/globals.css` (Tailwind v4, lihat Decision 022). Komponen UI wajib memakai token, bukan nilai hex langsung.
 
 ## 1. Design Direction
 

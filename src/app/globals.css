@@ -1,0 +1,105 @@
+@import 'tailwindcss';
+
+/*
+ * Token desain dari docs/DESIGN_SYSTEM.md (§3 warna, §4 tipografi, §5 spasi, §6 radius, §7 bayangan).
+ * Komponen wajib memakai kelas dari token ini, bukan nilai hex langsung.
+ * Palet bawaan Tailwind sengaja dikosongkan agar hanya token proyek yang tersedia.
+ */
+@theme {
+  --color-*: initial;
+
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --color-primary-900: #062a55;
+  --color-primary-700: #0b4f9c;
+  --color-primary-hover: #093f7d;
+  --color-primary-500: #3a86c8;
+  --color-primary-100: #eaf2fb;
+  --color-secondary-600: #1e8f3a;
+  --color-secondary-100: #e8f5ec;
+  --color-accent-400: #f5c518;
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #f5f8fc;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-600: #475569;
+  --color-neutral-900: #0f172a;
+  --color-success-700: #17712e;
+  --color-warning-700: #b45309;
+  --color-warning-100: #fef3c7;
+  --color-danger-700: #b91c1c;
+  --color-danger-100: #fee2e2;
+  --color-info-700: #0b4f9c;
+
+  /* Spasi: kelipatan 4px bawaan Tailwind; skala resmi 4, 8, 12, 16, 24, 32, 48, 64, 96 = 1, 2, 3, 4, 6, 8, 12, 16, 24. */
+  --spacing: 0.25rem;
+
+  --radius-*: initial;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 9999px;
+
+  --shadow-*: initial;
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
+  --shadow-md: 0 4px 12px rgb(15 23 42 / 0.08);
+  --shadow-lg: 0 16px 40px rgb(6 42 85 / 0.35);
+
+  /* Skala teks Panel & Publik (§4). text-base 16/24 dan text-sm 14/20 sudah sesuai bawaan. */
+  --text-h1: 2rem;
+  --text-h1--line-height: 2.5rem;
+  --text-h1-mobile: 1.75rem;
+  --text-h1-mobile--line-height: 2.25rem;
+  --text-h2: 1.5rem;
+  --text-h2--line-height: 2rem;
+  --text-h3: 1.25rem;
+  --text-h3--line-height: 1.75rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem;
+}
+
+/* Font di-host lokal lewat next/font/local (variabel CSS diset di layout.tsx). */
+@theme inline {
+  --font-heading: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+@layer base {
+  html {
+    background-color: var(--color-neutral-0);
+    color: var(--color-neutral-900);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+  }
+
+  /* Fokus terlihat (DESIGN_SYSTEM §15): ring 3px primary-500. */
+  :focus-visible {
+    outline: 3px solid var(--color-primary-500);
+    outline-offset: 2px;
+  }
+
+  /* Angka NOP, NIK, dan tanggal rata (§4). */
+  .angka-tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

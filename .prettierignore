@@ -1,0 +1,13 @@
+.next
+node_modules
+coverage
+playwright-report
+test-results
+.scratch
+.storage
+.backups
+docs
+design
+public
+package-lock.json
+next-env.d.ts
