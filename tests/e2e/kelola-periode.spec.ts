@@ -83,6 +83,28 @@ test.describe('Kelola periode', () => {
       fullPage: true,
     });
 
+    // Tabel peserta: filter, pencarian, dan ekspor daftar gugur.
+    const filter = page.getByRole('form', { name: 'Filter peserta' });
+    await filter.getByLabel('Status').selectOption('gugur');
+    await filter.getByLabel('Alasan').selectOption('NOP_DUPLICATE');
+    await filter.getByRole('button', { name: 'Terapkan' }).click();
+    await expect(page).toHaveURL(/status=gugur.*alasan=NOP_DUPLICATE/);
+    const tabel = page.getByRole('table', { name: /Daftar peserta/ });
+    await expect(tabel.locator('tbody tr')).toHaveCount(2);
+    await expect(tabel).toContainText('16.09.990.000.000-0000.9');
+    await expect(page.getByText('Halaman 1 dari 1 · 2 peserta')).toBeVisible();
+    await filter.getByLabel('Cari NOP atau awalan nama').fill('wajib pajak tiga puluh');
+    await filter.getByRole('button', { name: 'Terapkan' }).click();
+    await expect(page.getByText('Tidak ada peserta yang cocok dengan filter.')).toBeVisible();
+    await page.getByRole('link', { name: 'Reset' }).click();
+    await expect(page.getByText('Halaman 1 dari 1 · 33 peserta')).toBeVisible();
+    const unduhan = page.waitForEvent('download');
+    await page.getByRole('link', { name: 'Ekspor Daftar Gugur (Excel)' }).click();
+    expect((await unduhan).suggestedFilename()).toMatch(
+      /^daftar-gugur-undian-umroh-2026-\d{8}\.xlsx$/,
+    );
+    expect(await hitungAudit('EKSPOR_UNDUH', admin)).toBe(1);
+
     await page.getByLabel(/^File ekspor PBB/).setInputFiles('tests/fixtures/impor/campuran.csv');
     await page.getByRole('button', { name: 'Unggah File' }).click();
     await expect(

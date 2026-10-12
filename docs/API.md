@@ -195,9 +195,11 @@ Response:
 }
 ```
 
+Catatan: `q` berisi angka (titik, strip, dan spasi diabaikan) dicari sebagai awalan NOP; selain itu awalan nama tanpa peka huruf. `kecamatan` dinormalisasi seperti saat impor. Isian kosong diabaikan; parameter tak dikenal ditolak `400`. Item juga memuat `lunasRaw` (nilai sel asli) dan `wilayah` (`null` = belum dipetakan). Urutan menurut nomor baris file. NOP tidak valid: `nopFormat` = nilai mentah. `nikEnc` tidak pernah dipilih.
+
 #### GET /api/periode/:id/peserta/ekspor-gugur
 Authentication: Required (ADMIN)
-Response: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` — kolom baris, NOP bertitik, NIK tersamar, nama, kecamatan, kelurahan, 5 nilai tanggal asli, kode alasan, pesan alasan.
+Response: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` — kolom baris, NOP bertitik, NIK tersamar, nama, kecamatan, kelurahan, 5 nilai tanggal asli, kode alasan, pesan alasan. Nama file `daftar-gugur-<slug>-<yyyymmdd>.xlsx`. Sel teks yang diawali `=`, `+`, `-`, `@`, tab, atau CR diberi awalan `'`. Audit `EKSPOR_UNDUH` (`{ jenis: "DAFTAR_GUGUR", jumlahBaris }`).
 
 ### Wilayah
 

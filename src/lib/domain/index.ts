@@ -6,6 +6,7 @@ export * from './nik';
 export * from './nop';
 export * from './pengguna';
 export * from './periode';
+export * from './peserta';
 export * from './syarat';
 export * from './tanggal-lunas';
 export * from './result';
