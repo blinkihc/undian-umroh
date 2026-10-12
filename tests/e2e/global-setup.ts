@@ -68,7 +68,14 @@ async function hangatkanServer(): Promise<void> {
       }),
     });
     const cookie = cookieDari(masuk);
-    for (const jalur of ['/login', '/admin', '/operator', '/akun/ganti-password']) {
+    for (const jalur of [
+      '/login',
+      '/admin',
+      '/admin/pengguna',
+      '/admin/audit',
+      '/operator',
+      '/akun/ganti-password',
+    ]) {
       await fetch(`${APP_URL_E2E}${jalur}`, { headers: { Cookie: cookie }, redirect: 'manual' });
     }
   } catch (error) {

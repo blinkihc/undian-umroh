@@ -349,8 +349,15 @@ Validation: audio `.mp3`/`.ogg` ≤ 10 MB, gambar `.png`/`.jpg`/`.webp` ≤ 5 MB
 #### GET /api/pengguna · POST /api/pengguna · PATCH /api/pengguna/:id
 Authentication: Required (ADMIN)
 POST request: `{ "username": "operator1", "nama": "Operator Satu", "peran": "OPERATOR", "passwordAwal": "min-12-karakter-acak" }`
-PATCH request: `{ "aktif": false }` atau `{ "resetPassword": "…" }` atau `{ "peran": "ADMIN" }` + `version`.
-Validation: username unik `[a-z0-9._-]{3,32}`; kata sandi ≥ 12 karakter; admin tidak dapat menonaktifkan/menurunkan peran dirinya sendiri; minimal satu admin aktif harus tersisa.
+PATCH request: tepat satu dari `{ "aktif": false }`, `{ "resetPassword": "…" }`, atau `{ "peran": "ADMIN" }`, ditambah `version`.
+Validation: username dirapikan (trim, huruf kecil) lalu wajib `[a-z0-9._-]{3,32}` dan unik; `nama` 1–100 karakter; kata sandi awal/reset 12–128 karakter dan tidak sama dengan username; admin tidak dapat menonaktifkan/menurunkan peran dirinya sendiri; minimal satu admin aktif harus tersisa (diperiksa di transaksi berkunci).
+Response (`GET` → `{ "items": [...] }`, `POST` → `201`, `PATCH` → `200`), tanpa hash kata sandi:
+```json
+{ "id": "clx…", "username": "operator1", "nama": "Operator Satu", "peran": "OPERATOR", "aktif": true, "mustChangePassword": true, "lastLoginAt": null, "createdAt": "2026-10-12T14:05:03+07:00", "version": 1 }
+```
+Akun baru dan akun yang di-reset selalu `mustChangePassword: true`. Perubahan tanpa efek (mis. mengaktifkan akun yang sudah aktif) tidak menaikkan `version` dan tidak menulis audit.
+Errors: `400 VALIDASI_GAGAL` (`details.fields`), `404 TIDAK_DITEMUKAN`, `409 USERNAME_SUDAH_DIPAKAI` (`details.fields.username`), `409 CONFLICT` (`version` basi; `details.version` = versi terkini), `422 PERUBAHAN_AKUN_DITOLAK` (`details.alasan`: `UBAH_DIRI_SENDIRI` | `ADMIN_TERAKHIR`).
+Audit: `PENGGUNA_BUAT`, `PENGGUNA_AKTIFKAN`, `PENGGUNA_NONAKTIFKAN`, `PENGGUNA_RESET_PASSWORD`, `PENGGUNA_UBAH` (`peranLama`, `peranBaru`); payload tidak pernah memuat kata sandi.
 
 #### POST /api/akun/ganti-password
 Authentication: Required (ADMIN, OPERATOR); satu-satunya endpoint (selain `/api/auth/*`) yang tetap dapat dipakai akun `mustChangePassword`.
@@ -368,8 +375,10 @@ Cookie sesi: `authjs.session-token` (`__Secure-authjs.session-token` bila `APP_U
 
 #### GET /api/audit · GET /api/audit/ekspor
 Authentication: Required (ADMIN)
-Query: `aksi`, `aktor`, `dari`, `sampai`, `page`, `pageSize`.
-Response item: `{ "id": 1024, "at": "…", "aktor": "admin.bapenda", "aksi": "PERIODE_KUNCI", "targetTipe": "periode", "targetId": "clx1a2b3c", "payload": { "snapshotHash": "…" }, "ip": "10.0.0.5" }`
+Query: `aksi` (kode baku OBSERVABILITY), `aktor` (bagian username, tanpa memandang huruf besar-kecil), `dari` dan `sampai` (`YYYY-MM-DD`, WIB, inklusif; `sampai` ≥ `dari`), `page`, `pageSize` (≤ 200). Isian kosong diabaikan. Terbaru di atas.
+Response: `{ "items": [...], "page": 1, "pageSize": 50, "total": 0 }` dengan item `{ "id": 1024, "at": "2026-10-12T14:05:03+07:00", "aktor": "admin.bapenda", "aksi": "PERIODE_KUNCI", "targetTipe": "periode", "targetId": "clx1a2b3c", "payload": { "snapshotHash": "…" }, "ip": "10.0.0.5" }`
+`GET /api/audit/ekspor` (Excel) menyusul di tiket 19.
+Payload audit selalu disaring saat ditulis: field bernama kata sandi, token, secret, apiKey, captcha, cookie, atau NIK dibuang dan teks berisi 16/18 digit utuh disamarkan.
 
 ---
 

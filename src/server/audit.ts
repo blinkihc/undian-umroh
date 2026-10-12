@@ -3,7 +3,7 @@ import 'server-only';
 import { isIP } from 'node:net';
 
 import { type Prisma } from '@/generated/prisma/client';
-import { type AksiAudit } from '@/lib/domain';
+import { bersihkanPayloadAudit, type AksiAudit } from '@/lib/domain';
 
 import { type DbClient } from './db';
 import { type KonteksRequest } from './request';
@@ -37,7 +37,8 @@ export async function audit(db: DbClient, entri: EntriAudit): Promise<void> {
       aktorLabel: entri.aktor?.username ?? entri.aktorLabel ?? 'sistem',
       targetTipe: entri.targetTipe,
       targetId: entri.targetId ?? null,
-      payload: entri.payload ?? {},
+      // Lapisan pengaman terakhir: field rahasia dibuang, NIK/NOP utuh disamarkan.
+      payload: bersihkanPayloadAudit(entri.payload ?? {}) as Prisma.InputJsonObject,
       // Kolom inet menolak teks bukan IP; nilai yang tidak sah dibuang, bukan membuat audit gagal.
       ip: ip !== null && isIP(ip) !== 0 ? ip : null,
       userAgent: entri.konteks?.userAgent?.slice(0, UKURAN_USER_AGENT_MAKS) ?? null,

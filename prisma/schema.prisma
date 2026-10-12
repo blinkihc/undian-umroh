@@ -26,6 +26,8 @@ model Pengguna {
   aktif              Boolean   @default(true)
   mustChangePassword Boolean   @default(true) @map("must_change_password")
   lastLoginAt        DateTime? @map("last_login_at") @db.Timestamptz(3)
+  /// Naik setiap perubahan oleh Admin (optimistic concurrency, API.md §1).
+  version            Int       @default(1)
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 

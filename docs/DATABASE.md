@@ -71,6 +71,7 @@ Columns:
 | `aktif` | boolean | default `true` |
 | `must_change_password` | boolean | default `true`; `true` setelah dibuat/di-reset admin |
 | `last_login_at` | timestamptz | nullable |
+| `version` | int | default 1, `CHECK >= 1`; naik setiap perubahan oleh Admin (optimistic concurrency) |
 | `created_at`, `updated_at` | timestamptz | |
 
 ---

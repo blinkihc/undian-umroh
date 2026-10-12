@@ -6,6 +6,7 @@
 
 ### Added
 
+- Kelola pengguna dan log audit (tiket 03): `GET/POST /api/pengguna`, `PATCH /api/pengguna/:id` (aktif/nonaktif, reset kata sandi yang memaksa ganti, ubah peran) dengan `version`, aturan akun sendiri dan Admin aktif terakhir di transaksi berkunci, `GET /api/audit` dengan filter aksi, aktor, rentang tanggal WIB, dan paginasi; halaman `/admin/pengguna` dan `/admin/audit`; sidebar Panel Admin; penyaringan payload audit (field rahasia dibuang, NIK/NOP utuh disamarkan); kolom `pengguna.version`.
 - Login dan peran (tiket 02): tabel `pengguna` dan `audit_log` (append-only lewat trigger), login Admin/Operator dengan Auth.js + argon2id, sesi JWT 8 jam (batas mutlak 12 jam) dengan pengecekan akun aktif ke database di setiap request, wajib ganti kata sandi pertama, pembatas 5 gagal / 15 menit, pengecekan `Origin` pada mutasi, `withHandler`/`AppError`/`audit()`/pino dengan `X-Request-Id`, seed Admin idempoten (`npm run db:seed`), `/api/health`, header keamanan dasar, serta halaman `/login`, `/akun/ganti-password`, `/admin`, dan `/operator`. Keputusan di Decision 023.
 - Kerangka aplikasi (tiket 01): Next.js 16 App Router, TypeScript strict, Tailwind v4 dengan token `DESIGN_SYSTEM.md`, font lokal, ESLint (batas modul murni, larangan `Math.random` di area undian, larangan `console`), Prettier, Vitest (node + jsdom), Playwright, PostgreSQL tes via `docker-compose.test.yml`, validasi env gagal cepat, dan beranda publik bermerek (`lang="id"`). Versi dasar dicatat di Decision 022.
 

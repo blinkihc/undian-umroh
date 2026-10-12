@@ -47,13 +47,13 @@ Permission denied — `AKSES_DITOLAK` (peran tidak berhak atau `Origin` salah). 
 Resource not found — `TIDAK_DITEMUKAN`. Halaman "Data tidak ditemukan" dengan tautan kembali.
 
 409:
-Konflik status/versi/duplikat — `CONFLICT`, `PERIODE_TERKUNCI`, `PERIODE_AKTIF_SUDAH_ADA`, `HASIL_SUDAH_DIUNGGAH`. UI memuat ulang data dan menampilkan siapa/kapan perubahan lain terjadi (bila ada di `details`).
+Konflik status/versi/duplikat — `CONFLICT`, `USERNAME_SUDAH_DIPAKAI`, `PERIODE_TERKUNCI`, `PERIODE_AKTIF_SUDAH_ADA`, `HASIL_SUDAH_DIUNGGAH`. UI memuat ulang data dan menampilkan siapa/kapan perubahan lain terjadi (bila ada di `details`).
 
 413:
 File terlalu besar — `FILE_TERLALU_BESAR` (impor 20 MB, audio 10 MB, gambar 5 MB, hasil 1 MB).
 
 422:
-Aturan bisnis gagal — `PRASYARAT_KUNCI_BELUM_LENGKAP`, `HASIL_TIDAK_VALID` (dengan `details.pemeriksaan`), `AI_OUTPUT_TIDAK_VALID`.
+Aturan bisnis gagal — `PERUBAHAN_AKUN_DITOLAK` (`details.alasan`: akun sendiri atau Admin aktif terakhir), `PRASYARAT_KUNCI_BELUM_LENGKAP`, `HASIL_TIDAK_VALID` (dengan `details.pemeriksaan`), `AI_OUTPUT_TIDAK_VALID`.
 
 429:
 Rate limit exceeded — `TERLALU_BANYAK_PERMINTAAN`. Header `Retry-After` disertakan. Untuk `/cek` dengan `details.captchaDiperlukan` UI menampilkan captcha.

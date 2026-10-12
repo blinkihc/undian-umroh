@@ -34,6 +34,7 @@ export default defineConfig({
       testMatch: [
         '**/login.spec.ts',
         '**/tampilan-panel.spec.ts',
+        '**/kelola-pengguna.spec.ts',
         '**/persiapan-periode.spec.ts',
         '**/pasca-undian.spec.ts',
         '**/publik.spec.ts',
