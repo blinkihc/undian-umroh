@@ -72,6 +72,14 @@ const PILIH_DETAIL = {
   createdAt: true,
   updatedAt: true,
   wilayah: { select: { kode: true, nama: true }, orderBy: { kode: 'asc' } },
+  snapshot: {
+    select: {
+      hash: true,
+      lockedAt: true,
+      jumlahW1: true,
+      jumlahW2: true,
+    },
+  },
 } as const satisfies Prisma.PeriodeSelect;
 
 type BarisRingkas = Prisma.PeriodeGetPayload<{ select: typeof PILIH_RINGKAS }>;
@@ -99,9 +107,20 @@ function keDetail(baris: BarisDetail): PeriodeDetail {
     ...keRingkas(baris),
     tahunAwal: baris.tahunAwal,
     tahunAkhir: baris.tahunAkhir,
-    // Jumlah peserta lolos per wilayah dihitung setelah ada impor dan pemetaan (tiket 05, 08).
-    wilayah: baris.wilayah.map((w) => ({ kode: w.kode, nama: w.nama, jumlahLolos: 0 })),
-    snapshot: null,
+    wilayah: baris.wilayah.map((w) => ({
+      kode: w.kode,
+      nama: w.nama,
+      jumlahLolos:
+        baris.snapshot !== null
+          ? w.kode === 'W1'
+            ? baris.snapshot.jumlahW1
+            : baris.snapshot.jumlahW2
+          : 0,
+    })),
+    snapshot:
+      baris.snapshot !== null
+        ? { hash: baris.snapshot.hash, lockedAt: isoWib(baris.snapshot.lockedAt) }
+        : null,
     hasil: null,
     publishedAt: baris.publishedAt === null ? null : isoWib(baris.publishedAt),
     alasanBatal: baris.alasanBatal,

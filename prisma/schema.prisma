@@ -31,9 +31,10 @@ model Pengguna {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  auditLog      AuditLog[]
-  periodeDibuat Periode[]
-  imporDibuat   Impor[]
+  auditLog        AuditLog[]
+  periodeDibuat   Periode[]
+  imporDibuat     Impor[]
+  snapshotDikunci Snapshot[]
 
   @@map("pengguna")
 }
@@ -81,6 +82,7 @@ model Periode {
   impor     Impor[]
   peserta   Peserta[]
   kecamatan KecamatanWilayah[]
+  snapshot  Snapshot?
 
   @@map("periode")
 }
@@ -139,8 +141,9 @@ model Peserta {
   alasan       String[]
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  periode Periode @relation(fields: [periodeId], references: [id], onDelete: Restrict)
-  impor   Impor   @relation(fields: [imporId], references: [id], onDelete: Cascade)
+  periode         Periode          @relation(fields: [periodeId], references: [id], onDelete: Restrict)
+  impor           Impor            @relation(fields: [imporId], references: [id], onDelete: Cascade)
+  snapshotPeserta SnapshotPeserta?
 
   @@index([periodeId, eligible])
   @@index([periodeId, kecamatan])
@@ -204,3 +207,40 @@ model AuditLog {
   @@index([aktorId, at(sort: Desc)])
   @@map("audit_log")
 }
+
+/// Bukti penguncian daftar peserta lolos (DATABASE §3). File JSON kanonik disimpan di storage.
+/// Tabel append-only: trigger database menolak UPDATE dan DELETE.
+model Snapshot {
+  id         String   @id @default(cuid(2))
+  periodeId  String   @unique @map("periode_id")
+  hash       String
+  jumlahW1   Int      @map("jumlah_w1")
+  jumlahW2   Int      @map("jumlah_w2")
+  filePath   String   @map("file_path")
+  lockedById String   @map("locked_by_id")
+  lockedAt   DateTime @default(now()) @map("locked_at") @db.Timestamptz(3)
+
+  periode  Periode           @relation(fields: [periodeId], references: [id], onDelete: Restrict)
+  lockedBy Pengguna          @relation(fields: [lockedById], references: [id], onDelete: Restrict)
+  peserta  SnapshotPeserta[]
+
+  @@map("snapshot")
+}
+
+/// Indeks peserta yang terkunci (DATABASE §3), urut = 1..N berdasarkan NOP naik.
+/// Tabel append-only: trigger database menolak UPDATE dan DELETE.
+model SnapshotPeserta {
+  snapshotId String      @map("snapshot_id")
+  urut       Int
+  pesertaId  String      @unique @map("peserta_id")
+  nop        String
+  wilayah    KodeWilayah
+
+  snapshot Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
+  peserta  Peserta  @relation(fields: [pesertaId], references: [id], onDelete: Restrict)
+
+  @@id([snapshotId, urut])
+  @@unique([snapshotId, nop])
+  @@map("snapshot_peserta")
+}
+
