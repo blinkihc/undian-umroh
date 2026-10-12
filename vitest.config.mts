@@ -3,7 +3,13 @@ import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
-const alias = { '@': path.resolve(import.meta.dirname, 'src') };
+import { ENV_TES } from './tests/support/env-tes.mts';
+
+const alias = {
+  '@': path.resolve(import.meta.dirname, 'src'),
+  // `server-only` melempar di luar Next.js; tes memakai pengganti kosong.
+  'server-only': path.resolve(import.meta.dirname, 'tests/support/server-only-stub.ts'),
+};
 
 export default defineConfig({
   plugins: [react()],
@@ -11,6 +17,9 @@ export default defineConfig({
   test: {
     // Proyek tanpa berkas tes (mis. integrasi di tiket awal) tidak dianggap gagal.
     passWithNoTests: true,
+    env: ENV_TES,
+    // next-auth mengimpor `next/server` tanpa ekstensi; Vite harus yang meresolusinya.
+    server: { deps: { inline: ['next-auth', '@auth/core'] } },
     projects: [
       {
         extends: true,
@@ -36,6 +45,7 @@ export default defineConfig({
           name: 'integration',
           environment: 'node',
           include: ['tests/integration/**/*.test.ts'],
+          globalSetup: ['tests/integration/global-setup.ts'],
           testTimeout: 30_000,
           hookTimeout: 60_000,
           fileParallelism: false,

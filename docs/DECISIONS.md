@@ -748,3 +748,42 @@ Seluruh toolchain berjalan tanpa peringatan kompatibilitas; kelas Tailwind di lu
 
 Tradeoff:
 ESLint 9 sudah ditandai tidak lagi didukung oleh penerbitnya; migrasi ke ESLint 10 menunggu `eslint-plugin-import` (atau penggantinya) mendukungnya. `npm audit` melaporkan 5 kerentanan tingkat tinggi hanya pada rantai alat lint (`braces` lewat `eslint-config-next`); `npm audit --omit=dev` bersih. Naik versi TypeScript/ESLint nanti wajib lewat ADR baru.
+
+---
+
+## Decision 023
+
+Title:
+Versi dasar autentikasi dan basis data, serta cara sesi dan login diimplementasikan
+
+Date:
+2026-10-12
+
+Status:
+Accepted
+
+Context:
+Tiket 02 menambah Prisma, Auth.js, argon2id, pino, dan kerangka server. Auth.js v5 (`next-auth`) masih berstatus beta di npm dan, sejak dikelola Better Auth, hanya menerima perbaikan keamanan (beta.32 terbit Juli 2026 membawa perbaikan keamanan). Prisma 7.10.0 adalah rilis stabil; kanal `latest` npm sudah menunjuk rilis kandidat 8.0. Auth.js membawa halaman dan alur sendiri, sedangkan proyek ini mewajibkan kontrak Route Handler seragam (Decision 011), pesan galat Indonesia, blokir login 429, dan audit.
+
+Decision:
+- Versi dipin exact: `next-auth` 5.0.0-beta.32, `@node-rs/argon2` 2.2.2, `prisma` dan `@prisma/client` 7.10.0 dengan `@prisma/adapter-pg` 7.10.0 dan `pg` 8.23.1, `pino` 10.4.0, `ulid` 3.0.2, `tsx` 4.23.15 (menjalankan seed dan skrip TypeScript). Klien Prisma dihasilkan ke `src/generated/prisma` (tidak di-commit; `postinstall` menjalankan `prisma generate`) dan konfigurasi CLI ada di `prisma.config.ts`.
+- Sesi memakai JWT Auth.js dalam cookie `httpOnly`, `SameSite=Lax`, `Secure` bila `APP_URL` berawalan `https://`, berlaku 8 jam dan diperbarui bergulir oleh `src/proxy.ts` tiap 15 menit aktivitas dengan batas mutlak 12 jam sejak login. Token hanya memuat ID pengguna dan waktu login; peran, status aktif, dan kewajiban ganti kata sandi dibaca dari database pada setiap request (`requireUser`, `requireRole`, penjaga halaman).
+- Login memakai Credentials provider Auth.js di `/api/auth/*`, tetapi `authorize` hanya memanggil service `masuk()` (pembatas 5 gagal / 15 menit, argon2id, audit). Route `[...nextauth]` dibungkus `withHandler` agar mendapat `X-Request-Id`, cek `Origin`, dan balasan `429` berformat standar saat diblokir. Formulir login memanggil endpoint Auth.js lewat `fetch` (CSRF + `X-Auth-Return-Redirect`) alih-alih `next-auth/react`, sehingga status 429 dapat dibaca.
+- Kata sandi baru juga tidak boleh sama dengan kata sandi lama (tambahan atas SECURITY §1) agar kewajiban ganti kata sandi pertama tidak dapat dilewati dengan memasukkan ulang kata sandi sementara.
+- `audit_log` dijaga trigger terhadap UPDATE, DELETE, dan TRUNCATE; fungsi pemicu `tolak_ubah_tabel_immutable` dipakai ulang oleh tabel immutable lain pada migrasinya.
+
+Alternatives:
+- Better Auth atau implementasi sesi sendiri (menyimpang dari keputusan awal tumpukan teknologi)
+- Prisma 8 rilis kandidat (belum stabil)
+- `next-auth/react` `signIn` (tidak dapat membaca status 429)
+
+Reason:
+Mengikuti keputusan Auth.js dengan risiko yang dikurangi: kode kita hanya bergantung pada bagian kecil Auth.js (cookie JWT, CSRF, handler), sedangkan aturan keamanan penting (verifikasi, blokir, audit, status akun) ada di kode kita dan diuji terhadap PostgreSQL asli.
+
+Consequences:
+
+Positive:
+Kontrak login dan error seragam dengan endpoint lain; akun nonaktif kehilangan akses seketika; semua perilaku diuji integrasi.
+
+Tradeoff:
+Auth.js v5 beta dalam mode perawatan: pembaruan wajib dipantau dan dipin manual; bila dihentikan, sesi dapat diganti karena token hanya memuat `sub` dan `loginAt`. `npm audit` melaporkan temuan tinggi pada rantai CLI Prisma 7 (`mysql2` dan `deepmerge-ts` di dalam `prisma`, tidak dipakai saat runtime dan tidak memproses masukan luar); perbaikannya hanya ada di Prisma 8 rilis kandidat, jadi ditinjau lagi saat 8.x stabil. TRUNCATE yang dilakukan pemilik database dengan menonaktifkan trigger (`session_replication_role`) tetap di luar jangkauan trigger; dilindungi oleh akses database dan backup.

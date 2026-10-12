@@ -6,8 +6,11 @@
 
 ### Added
 
+- Login dan peran (tiket 02): tabel `pengguna` dan `audit_log` (append-only lewat trigger), login Admin/Operator dengan Auth.js + argon2id, sesi JWT 8 jam (batas mutlak 12 jam) dengan pengecekan akun aktif ke database di setiap request, wajib ganti kata sandi pertama, pembatas 5 gagal / 15 menit, pengecekan `Origin` pada mutasi, `withHandler`/`AppError`/`audit()`/pino dengan `X-Request-Id`, seed Admin idempoten (`npm run db:seed`), `/api/health`, header keamanan dasar, serta halaman `/login`, `/akun/ganti-password`, `/admin`, dan `/operator`. Keputusan di Decision 023.
 - Kerangka aplikasi (tiket 01): Next.js 16 App Router, TypeScript strict, Tailwind v4 dengan token `DESIGN_SYSTEM.md`, font lokal, ESLint (batas modul murni, larangan `Math.random` di area undian, larangan `console`), Prettier, Vitest (node + jsdom), Playwright, PostgreSQL tes via `docker-compose.test.yml`, validasi env gagal cepat, dan beranda publik bermerek (`lang="id"`). Versi dasar dicatat di Decision 022.
 
+### Changed
+- Komponen React yang diekspor wajib bertipe kembalian eksplisit dan dipaksa ESLint (CODE_STYLE §6).
 ## [0.1.0] - 2026-10-11
 
 Rilis dokumentasi dan desain awal. Belum ada kode aplikasi.

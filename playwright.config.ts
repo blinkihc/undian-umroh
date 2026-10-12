@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = '3100';
+import { APP_URL_E2E, PORT_E2E, URL_DB_E2E } from './tests/support/env-e2e';
 
 // Kunci dummy khusus tes e2e; bukan rahasia dan tidak dipakai di lingkungan lain.
 const KUNCI_DUMMY = Buffer.alloc(32, 1).toString('base64');
@@ -10,12 +10,19 @@ const channel = process.env.PW_CHANNEL;
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // Membuat database e2e baru + migrasi. Butuh PostgreSQL tes: npm run db:test:up.
+  globalSetup: './tests/e2e/global-setup.ts',
+  // Tunggu assertion 10 detik: server produksi + argon2 + PostgreSQL di laptop lambat butuh lebih dari 5.
+  expect: { timeout: 10_000 },
   fullyParallel: true,
+  // Satu server Next produksi dipakai bersama semua tes; terlalu banyak peramban paralel membuat
+  // login (argon2 + tiga render server) saling berebut CPU di laptop 4 inti.
+  workers: 2,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: `http://localhost:${PORT}`,
+    baseURL: APP_URL_E2E,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     ...(channel ? { channel } : {}),
@@ -26,6 +33,7 @@ export default defineConfig({
       name: 'panel',
       testMatch: [
         '**/login.spec.ts',
+        '**/tampilan-panel.spec.ts',
         '**/persiapan-periode.spec.ts',
         '**/pasca-undian.spec.ts',
         '**/publik.spec.ts',
@@ -46,18 +54,22 @@ export default defineConfig({
   ],
   webServer: {
     // Menguji build produksi (sama dengan yang dijalankan di VPS), bukan server dev.
-    command: `npm run build && npm run start -- --port ${PORT}`,
-    url: `http://localhost:${PORT}`,
+    command: `npm run build && npm run start -- --port ${PORT_E2E}`,
+    url: APP_URL_E2E,
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,
+    // Log server hanya ditampilkan bila E2E_LOG_LEVEL diisi (penelusuran tes lambat).
+    stdout: process.env.E2E_LOG_LEVEL ? 'pipe' : 'ignore',
     env: {
       NODE_ENV: 'production',
-      APP_URL: `http://localhost:${PORT}`,
-      DATABASE_URL: 'postgresql://undian:undian@localhost:5433/undian_test?schema=public',
+      APP_URL: APP_URL_E2E,
+      DATABASE_URL: URL_DB_E2E,
       AUTH_SECRET: KUNCI_DUMMY,
       NIK_ENCRYPTION_KEY: KUNCI_DUMMY,
       CAPTCHA_HMAC_KEY: KUNCI_DUMMY,
       STORAGE_DIR: './.storage',
+      // E2E_LOG_LEVEL=info menampilkan durasi tiap request server untuk menelusuri tes lambat.
+      LOG_LEVEL: process.env.E2E_LOG_LEVEL ?? 'warn',
     },
   },
 });

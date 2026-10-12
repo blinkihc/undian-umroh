@@ -1,0 +1,59 @@
+// Skema data (docs/DATABASE.md). Tiket 02 baru memuat `pengguna` dan `audit_log`;
+// tabel lain ditambahkan oleh tiket pemiliknya bersama migrasinya.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Peran {
+  ADMIN
+  OPERATOR
+}
+
+/// Akun Admin dan Operator. Tidak dihapus, hanya dinonaktifkan (DATABASE §8).
+model Pengguna {
+  id                 String    @id @default(cuid(2))
+  /// Huruf kecil, 3-32 karakter [a-z0-9._-]; CHECK constraint ada di migrasi.
+  username           String    @unique
+  nama               String
+  passwordHash       String    @map("password_hash")
+  peran              Peran
+  aktif              Boolean   @default(true)
+  mustChangePassword Boolean   @default(true) @map("must_change_password")
+  lastLoginAt        DateTime? @map("last_login_at") @db.Timestamptz(3)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  auditLog AuditLog[]
+
+  @@map("pengguna")
+}
+
+/// Jejak aksi penting. Append-only: trigger database menolak UPDATE, DELETE, dan TRUNCATE.
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  at         DateTime @default(now()) @db.Timestamptz(3)
+  /// Kosong untuk aksi publik, sistem, dan login gagal.
+  aktorId    String?  @map("aktor_id")
+  /// Username, atau `publik` / `sistem`.
+  aktorLabel String   @map("aktor_label")
+  aksi       String
+  targetTipe String   @map("target_tipe")
+  targetId   String?  @map("target_id")
+  /// Ringkasan dan ID saja; tidak pernah NIK, kata sandi, atau token.
+  payload    Json     @default("{}")
+  ip         String?  @db.Inet
+  userAgent  String?  @map("user_agent") @db.VarChar(256)
+
+  aktor Pengguna? @relation(fields: [aktorId], references: [id], onDelete: Restrict)
+
+  @@index([at(sort: Desc)])
+  @@index([aksi, at(sort: Desc)])
+  @@index([aktorId, at(sort: Desc)])
+  @@map("audit_log")
+}

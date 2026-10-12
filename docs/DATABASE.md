@@ -22,13 +22,13 @@ Columns:
 `snake_case` di database, `camelCase` di model Prisma (`batasLunas` → `batas_lunas`).
 
 Primary Keys:
-`id` bertipe `text` berisi CUID2 (`@default(cuid())`), kecuali `audit_log.id` (`bigserial`) dan `snapshot_peserta` (composite, lihat tabel).
+`id` bertipe `text` berisi CUID2 (`@default(cuid(2))`), kecuali `audit_log.id` (`bigserial`) dan `snapshot_peserta` (composite, lihat tabel).
 
 Foreign Keys:
 `<entitas>_id`, mis. `periode_id`, `pengguna_id`. `ON DELETE RESTRICT` secara default — data undian tidak dihapus berantai.
 
 Timestamps:
-`created_at`, `updated_at` bertipe `timestamptz` (UTC di DB, ditampilkan WIB). Waktu kejadian spesifik memakai nama `<aksi>_at`, mis. `locked_at`, `uploaded_at`.
+`created_at`, `updated_at` bertipe `timestamptz` (Prisma: `@db.Timestamptz(3)`; UTC di DB, ditampilkan WIB). Waktu kejadian spesifik memakai nama `<aksi>_at`, mis. `locked_at`, `uploaded_at`.
 
 Enum:
 Nama tipe `PascalCase`, nilai `SCREAMING_SNAKE`, mis. `StatusPeriode.TERKUNCI`. Teks tampilan Indonesia dipetakan di UI.
@@ -64,7 +64,7 @@ Columns:
 | Kolom | Tipe | Aturan |
 |---|---|---|
 | `id` | text PK | cuid |
-| `username` | text | unik, huruf kecil, 3–32 karakter `[a-z0-9._-]` |
+| `username` | text | unik, huruf kecil, 3–32 karakter `[a-z0-9._-]` (CHECK constraint `pengguna_username_format_check`) |
 | `nama` | text | wajib |
 | `password_hash` | text | argon2id |
 | `peran` | `Peran` | wajib |
@@ -471,7 +471,8 @@ Filter log audit.
 - Transisi status periode hanya lewat service `periode.transition(id, dari, ke, version)` dengan `UPDATE ... WHERE status = :dari AND version = :version`; 0 baris terdampak → error `CONFLICT`.
 - Tabel `peserta`, `kecamatan_wilayah`, `periode.batas_lunas` hanya boleh berubah saat `status = DRAF`.
 - `snapshot`, `snapshot_peserta`, `hasil_undian` **immutable**: tidak ada UPDATE/DELETE di kode aplikasi. Trigger PostgreSQL `BEFORE UPDATE OR DELETE` menolak perubahan (dibuat di migrasi).
-- `audit_log` append-only: trigger menolak UPDATE/DELETE.
+- `audit_log` append-only: trigger menolak UPDATE/DELETE (per baris) dan TRUNCATE (per pernyataan) lewat fungsi `tolak_ubah_tabel_immutable()` yang dipakai ulang oleh tabel immutable lain. Tes membuat akun dengan username acak dan tidak menghapus data; pembersihan massal di tes memakai `session_replication_role = replica`.
+- Tabel yang sudah ada di skema (tiket 02): `pengguna` dan `audit_log`; tabel lain menyusul bersama tiket pemiliknya.
 - `slot_hasil`: hanya kolom status yang boleh berubah, lewat service pemenang dengan `version`.
 
 ---

@@ -41,7 +41,7 @@ Validation error — `VALIDASI_GAGAL`, `HEADER_TIDAK_SESUAI`, `FILE_TIDAK_VALID`
 Authentication required — `TIDAK_TERAUTENTIKASI`. Klien mengalihkan ke `/login` dan kembali ke halaman semula setelah login. Sama untuk sesi habis dan akun dinonaktifkan.
 
 403:
-Permission denied — `AKSES_DITOLAK` (peran tidak berhak atau `Origin` salah). UI menampilkan "Anda tidak memiliki akses ke halaman ini." dan mengarahkan ke beranda peran.
+Permission denied — `AKSES_DITOLAK` (peran tidak berhak atau `Origin` salah). UI menampilkan "Anda tidak memiliki akses ke halaman ini." dan mengarahkan ke beranda peran. `PASSWORD_HARUS_DIGANTI` — akun wajib-ganti kata sandi memanggil endpoint selain ganti kata sandi; pesan "Anda harus mengganti kata sandi sebelum melanjutkan." dan halaman dialihkan ke "Ganti kata sandi".
 
 404:
 Resource not found — `TIDAK_DITEMUKAN`. Halaman "Data tidak ditemukan" dengan tautan kembali.

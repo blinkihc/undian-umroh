@@ -1,8 +1,9 @@
 import { Info } from 'lucide-react';
+import type { ReactElement } from 'react';
 
 import { JUDUL_ACARA_DEFAULT } from '@/config/brand';
 
-export default function BerandaPage() {
+export default function BerandaPage(): ReactElement {
   return (
     <section className="mx-auto max-w-[1280px] px-4 py-8 md:px-6 md:py-12">
       <div className="max-w-[720px]">

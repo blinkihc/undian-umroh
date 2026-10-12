@@ -102,6 +102,7 @@ export default defineConfig([
     'design/**',
     'public/**',
     'next-env.d.ts',
+    'src/generated/**',
   ]),
 
   ...nextVitals,
@@ -158,6 +159,8 @@ export default defineConfig([
   {
     files: ['src/**/*.{ts,tsx}'],
     rules: {
+      // Return type eksplisit untuk fungsi dan komponen yang diekspor (CODE_STYLE §6).
+      '@typescript-eslint/explicit-module-boundary-types': 'error',
       'no-restricted-imports': ['error', { patterns: [PATRON_RELATIF] }],
       'no-console': 'error',
       'no-restricted-syntax': ['error', SEL_USE_CLIENT],

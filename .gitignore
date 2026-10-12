@@ -15,3 +15,5 @@ next-env.d.ts
 *.tsbuildinfo
 # Data contoh asli wajib pajak (jangan pernah di-commit)
 docs/contoh data.*
+# Klien Prisma hasil generate (npm run db:generate)
+src/generated/

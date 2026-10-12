@@ -119,7 +119,7 @@ Functions should:
 Tambahan:
 - Fungsi murni di `src/lib` tidak membaca waktu/acak global secara implisit; terima `now`/`random` sebagai parameter bila perlu agar dapat diuji (kecuali `secureRandomInt` yang membungkus Web Crypto dan dapat diinjeksi).
 - Parameter > 3 → gunakan objek bernama.
-- Return type eksplisit untuk fungsi yang diekspor.
+- Return type eksplisit untuk fungsi yang diekspor, termasuk komponen React (`ReactElement`, atau `Promise<ReactElement>` untuk Server Component async). Dipaksa ESLint `@typescript-eslint/explicit-module-boundary-types` di `src/**`.
 
 ---
 

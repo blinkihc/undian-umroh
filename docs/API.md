@@ -38,7 +38,7 @@
 |---|---|---|
 | 400 | Input tidak valid | `VALIDASI_GAGAL`, `HEADER_TIDAK_SESUAI`, `FILE_TIDAK_VALID` |
 | 401 | Belum login / sesi habis | `TIDAK_TERAUTENTIKASI` |
-| 403 | Peran tidak berhak / Origin salah | `AKSES_DITOLAK` |
+| 403 | Peran tidak berhak / Origin salah / wajib ganti kata sandi | `AKSES_DITOLAK`, `PASSWORD_HARUS_DIGANTI` |
 | 404 | Resource tidak ada | `TIDAK_DITEMUKAN` |
 | 409 | Konflik status/versi/duplikat | `CONFLICT`, `PERIODE_TERKUNCI`, `HASIL_SUDAH_DIUNGGAH` |
 | 413 | File terlalu besar | `FILE_TERLALU_BESAR` |
@@ -353,8 +353,18 @@ PATCH request: `{ "aktif": false }` atau `{ "resetPassword": "…" }` atau `{ "p
 Validation: username unik `[a-z0-9._-]{3,32}`; kata sandi ≥ 12 karakter; admin tidak dapat menonaktifkan/menurunkan peran dirinya sendiri; minimal satu admin aktif harus tersisa.
 
 #### POST /api/akun/ganti-password
-Authentication: Required (ADMIN, OPERATOR)
+Authentication: Required (ADMIN, OPERATOR); satu-satunya endpoint (selain `/api/auth/*`) yang tetap dapat dipakai akun `mustChangePassword`.
 Request: `{ "passwordLama": "…", "passwordBaru": "…" }` — wajib saat login pertama (`mustChangePassword`).
+Validation: `passwordBaru` 12–128 karakter, tidak sama dengan username (tanpa memandang huruf besar-kecil), dan berbeda dari `passwordLama`. Kesalahan dikembalikan sebagai `400 VALIDASI_GAGAL` dengan `details.fields.passwordLama` atau `details.fields.passwordBaru`. Kata sandi lama yang salah dibatasi 5 kali / 15 menit per pengguna (`429`).
+Response `200`: `{ "mustChangePassword": false }`. Tercatat `PASSWORD_GANTI`.
+
+#### Autentikasi (Auth.js) — /api/auth/*
+Dikelola Auth.js (Credentials provider, JWT); route dibungkus `withHandler` sehingga semua respons membawa `X-Request-Id` dan `POST` memeriksa `Origin`. Formulir login memakai:
+1. `GET /api/auth/csrf` → `{ "csrfToken": "…" }` (+ cookie CSRF).
+2. `POST /api/auth/callback/credentials` (`application/x-www-form-urlencoded`: `csrfToken`, `username`, `password`, `callbackUrl`; header `X-Auth-Return-Redirect: 1`) → `200 { "url": "…" }`. Bila `url` berisi `error=CredentialsSignin` login gagal (pesan selalu "Username atau kata sandi salah."); bila berisi `code=login_diblokir` atau respons `429` (format error standar + `Retry-After`) kombinasi username+IP diblokir 15 menit setelah 5 kegagalan dalam 15 menit. Berhasil → cookie sesi diset.
+3. `POST /api/auth/signout` (CSRF) → menghapus cookie sesi; tercatat `LOGOUT`.
+
+Cookie sesi: `authjs.session-token` (`__Secure-authjs.session-token` bila `APP_URL` https), `httpOnly`, `SameSite=Lax`, `Secure` bila https, berlaku 8 jam, diperbarui bergulir maksimal 12 jam sejak login. Token hanya berisi `sub` (ID pengguna) dan `loginAt`; peran dan status akun dibaca dari database pada setiap request. Login berhasil/gagal/diblokir tercatat `LOGIN_BERHASIL`/`LOGIN_GAGAL`/`LOGIN_DIBLOKIR`.
 
 #### GET /api/audit · GET /api/audit/ekspor
 Authentication: Required (ADMIN)
@@ -411,7 +421,7 @@ Authentication: Tidak. Mengembalikan tantangan proof-of-work.
 
 #### GET /api/health
 Authentication: Tidak.
-Response `200`: `{ "status": "ok", "db": "ok", "versi": "0.1.0" }`; `503` jika DB gagal.
+Response `200`: `{ "status": "ok", "db": "ok", "versi": "0.1.0" }`; `503` jika DB gagal dengan badan `{ "status": "gagal", "db": "gagal", "versi": "0.1.0" }` (tanpa detail galat). Selalu `Cache-Control: no-store`.
 
 ---
 

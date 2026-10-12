@@ -224,7 +224,8 @@ undian-umroh/
 ├── prisma/
 │   ├── schema.prisma
 │   ├── migrations/
-│   └── seed.ts                   # admin awal dari env + aset bawaan
+│   └── seed.ts                   # admin awal dari env + aset bawaan (npm run db:seed)
+├── prisma.config.ts              # konfigurasi CLI Prisma 7 (skema, migrasi, URL DB)
 ├── public/
 │   ├── brand/                    # logo-okus.png, logo-bapenda.png
 │   └── aset-bawaan/              # audio & latar bebas royalti (disalin ke storage saat seed)
@@ -262,10 +263,13 @@ undian-umroh/
 │   │   └── logger.ts             # pino
 │   ├── client/
 │   │   └── offline/              # idb store, loader paket, mesin layar undian
+│   ├── generated/prisma/         # klien Prisma hasil `prisma generate` (tidak di-commit)
 │   ├── instrumentation.ts        # hook Next.js: validasi env saat server mulai
+│   ├── proxy.ts                  # (Next.js 16, ganti nama middleware) cek sesi halaman Panel + perpanjang cookie
 │   └── config/
 │       ├── env.ts                # validasi env dengan zod (lihat ENVIRONMENT.md)
 │       ├── startup.ts            # gagal cepat: pesan ke stderr lalu exit(1)
+│       ├── sesi.ts               # konstanta sesi (8 jam, batas mutlak 12 jam, nama cookie)
 │       └── brand.ts              # nama aplikasi, judul acara default, logo
 ├── tests/
 │   ├── unit/

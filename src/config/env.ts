@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { NAMA_APLIKASI_DEFAULT, VERSI_APLIKASI_DEFAULT } from './brand';
+
 /** Kunci rahasia harus base64 dari tepat 32 byte (AES-256 / HMAC-SHA256). */
 const kunciBase64 = z
   .string()
@@ -37,8 +39,8 @@ const EnvSchema = z.object({
   AI_PROVIDER: opsional,
   AI_API_KEY: opsional,
   AI_MODEL: opsional,
-  NEXT_PUBLIC_APP_NAME: z.string().min(1).default('Undian Umroh PBB OKU Selatan'),
-  NEXT_PUBLIC_APP_VERSION: z.string().min(1).default('0.1.0'),
+  NEXT_PUBLIC_APP_NAME: z.string().min(1).default(NAMA_APLIKASI_DEFAULT),
+  NEXT_PUBLIC_APP_VERSION: z.string().min(1).default(VERSI_APLIKASI_DEFAULT),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

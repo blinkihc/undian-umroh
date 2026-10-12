@@ -15,11 +15,11 @@ Methods:
 - Tidak ada pendaftaran mandiri; akun dibuat Admin
 
 Aturan:
-- Kata sandi minimal 12 karakter; ditolak jika sama dengan username. Tidak ada aturan komposisi rumit.
+- Kata sandi minimal 12 karakter; ditolak jika sama dengan username. Tidak ada aturan komposisi rumit. Saat mengganti, kata sandi baru juga harus berbeda dari yang lama (Decision 023).
 - Akun baru dan akun yang di-reset wajib ganti kata sandi saat login pertama (`must_change_password`); semua halaman lain diblokir sampai diganti.
-- Sesi: JWT di cookie `httpOnly`, `Secure`, `SameSite=Lax`, masa berlaku 8 jam, perpanjangan bergulir maksimal 12 jam sejak login.
+- Sesi: JWT di cookie `httpOnly`, `Secure`, `SameSite=Lax`, masa berlaku 8 jam, perpanjangan bergulir maksimal 12 jam sejak login. `Secure` dan awalan `__Secure-` aktif bila `APP_URL` berawalan `https://` (produksi di balik Caddy); pengembangan lokal lewat `http://localhost` memakai cookie tanpa `Secure`. Perpanjangan dilakukan `src/proxy.ts` (tiap 15 menit aktivitas); batas 12 jam ditegakkan `requireUser` di setiap request. Detail di Decision 023.
 - Setiap request terautentikasi memanggil `requireUser()` yang mengecek ke DB: akun ada, `aktif = true`, peran sesuai. Akun yang dinonaktifkan langsung kehilangan akses tanpa menunggu token kedaluwarsa.
-- Pesan login gagal selalu generik: "Username atau kata sandi salah."
+- Pesan login gagal selalu generik: "Username atau kata sandi salah." (kredensial salah, username tak dikenal, dan akun nonaktif). Waktu respons username tak dikenal disamakan dengan verifikasi hash palsu. Teks yang diketik di kolom username dan tidak berpola username tidak dicatat di audit.
 - Admin awal dibuat dari `SEED_ADMIN_USERNAME`/`SEED_ADMIN_PASSWORD` dan wajib ganti kata sandi saat login pertama. Hapus `SEED_ADMIN_PASSWORD` dari env produksi setelah seed.
 
 ### Layar Undian Offline
@@ -155,7 +155,7 @@ Semua endpoint non-publik memanggil `requireUser()` / `requireRole()`. Respons `
 Authorization:
 Sesuai matriks §2; ditegakkan di handler dan service.
 
-Security headers (via `next.config` + Caddy):
+Security headers (via `next.config` + Caddy). Tiket 02 memasang semua header di bawah **kecuali** CSP berbasis nonce, yang ditambahkan di tiket hardening (27) setelah diuji bersama Layar Undian, PDF, dan PWA:
 - `Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-<per-request>' 'strict-dynamic'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
 - `X-Content-Type-Options: nosniff`

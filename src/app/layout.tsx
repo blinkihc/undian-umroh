@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
-import type { ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 
 import { JUDUL_ACARA_DEFAULT } from '@/config/brand';
 
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     'Undian umroh untuk wajib pajak PBB-P2 Kabupaten Ogan Komering Ulu Selatan yang melunasi pajak tahun 2022 sampai 2026, diselenggarakan oleh Bapenda.',
 };
 
-export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+export default function RootLayout({ children }: Readonly<{ children: ReactNode }>): ReactElement {
   return (
     <html
       lang="id"

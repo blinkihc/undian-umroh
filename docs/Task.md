@@ -137,23 +137,23 @@ Rujukan: `DATABASE.md` · `SECURITY.md` §1–2, §5, §7 · `CODE_STYLE.md` §7
 Implementasi:
 - [ ] `prisma/schema.prisma` lengkap sesuai `DATABASE.md` (enum, 15 tabel, indeks)
 - [ ] Migrasi awal + SQL manual: trigger immutable (`snapshot`, `snapshot_peserta`, `hasil_undian`, `audit_log`), indeks unik parsial `periode_satu_aktif`
-- [ ] Auth.js credentials + argon2id; sesi JWT httpOnly; cek akun aktif ke DB tiap request
-- [ ] `must_change_password` dan halaman ganti kata sandi
-- [ ] `requireUser`, `requireRole`, `withHandler`, `AppError`, pemetaan error Prisma/zod
-- [ ] Rate limit login (5 gagal/15 menit); pengecekan `Origin` pada mutasi
-- [ ] pino + `redact`; `requestId` dan header `X-Request-Id`
-- [ ] Helper `audit()` dalam transaksi
-- [ ] Seed Admin dari env; `db:seed` idempoten
-- [ ] Halaman: login, ganti kata sandi, kelola pengguna (tambah, nonaktifkan, reset), log audit (filter)
-- [ ] `/api/health`
-- [ ] Header keamanan dasar
+- [x] Auth.js credentials + argon2id; sesi JWT httpOnly; cek akun aktif ke DB tiap request
+- [x] `must_change_password` dan halaman ganti kata sandi
+- [x] `requireUser`, `requireRole`, `withHandler`, `AppError`, pemetaan error Prisma/zod
+- [x] Rate limit login (5 gagal/15 menit); pengecekan `Origin` pada mutasi
+- [x] pino + `redact`; `requestId` dan header `X-Request-Id`
+- [x] Helper `audit()` dalam transaksi
+- [x] Seed Admin dari env; `db:seed` idempoten
+- [ ] Halaman: ~~login, ganti kata sandi~~ _(selesai tiket 02)_, kelola pengguna (tambah, nonaktifkan, reset), log audit (filter)
+- [x] `/api/health`
+- [x] Header keamanan dasar
 
 Tes:
-- [ ] RBAC: ADMIN dan OPERATOR pada endpoint yang sudah ada; akses tanpa sesi → 401
-- [ ] Login gagal beruntun terblokir; akun nonaktif kehilangan akses segera
-- [ ] `Origin` asing → 403
-- [ ] UPDATE/DELETE langsung via SQL pada tabel immutable ditolak trigger
-- [ ] Setiap mutasi menulis tepat satu baris audit
+- [x] RBAC: ADMIN dan OPERATOR pada endpoint yang sudah ada; akses tanpa sesi → 401
+- [x] Login gagal beruntun terblokir; akun nonaktif kehilangan akses segera
+- [x] `Origin` asing → 403
+- [x] UPDATE/DELETE langsung via SQL pada tabel immutable ditolak trigger _(baru `audit_log`; tabel lain di tiketnya)_
+- [x] Setiap mutasi menulis tepat satu baris audit
 - [ ] Demo: Admin membuat akun Operator; Operator ditolak di `/admin`
 
 ---

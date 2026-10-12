@@ -122,6 +122,7 @@ BACKUP_DIR=./.backups
 Validasi saat start:
 - `src/config/env.ts` memvalidasi variabel aplikasi (`NODE_ENV`, `APP_URL`, `DATABASE_URL`, tiga kunci base64 32 byte, `STORAGE_DIR`, serta `LOG_LEVEL`, `TZ`, `AI_*`, `NEXT_PUBLIC_*` yang opsional). Hook `src/instrumentation.ts` menjalankannya saat server mulai; bila salah, pesan Indonesia berisi nama variabel (bukan nilainya) ditulis ke stderr dan proses keluar dengan kode 1.
 - `POSTGRES_*` (Compose), `BACKUP_*` (skrip host), dan `SEED_*` (skrip seed) dibaca oleh konsumennya sendiri dan tidak divalidasi oleh aplikasi.
+- `npm run db:seed` membaca `.env` (bila ada) dan memvalidasi env aplikasi seperti server, jadi butuh `DATABASE_URL`, tiga kunci, `APP_URL`, dan `STORAGE_DIR` selain `SEED_ADMIN_USERNAME` dan `SEED_ADMIN_PASSWORD`. Perintah ini memakai `tsx` (devDependency); image produksi (tiket 25) harus menyertakannya atau menjalankan seed dari tahap build.
 - Pengembangan lokal: salin `.env.example` ke `.env`, lalu isi `AUTH_SECRET`, `NIK_ENCRYPTION_KEY`, dan `CAPTCHA_HMAC_KEY` (base64 dari 32 byte acak) sebelum `npm run dev`.
 
 Tambahan:

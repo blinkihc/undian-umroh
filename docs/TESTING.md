@@ -309,8 +309,14 @@ Type Check:
 
 Lainnya:
 - `npm run db:test:up` — jalankan PostgreSQL test (Docker)
+- `npm run db:generate` / `db:migrate` / `db:migrate:deploy` / `db:seed` — klien Prisma, migrasi pengembangan, migrasi produksi, dan seed Admin dari `SEED_ADMIN_*` (idempoten)
 - `npm run fixture:generate -- --rows 46000` — data sintetis
 - `npm run simulate-draw -- --w1 50 --w2 40` — simulasi undian CLI
+
+Catatan lingkungan tes:
+- `test:int`: `tests/integration/global-setup.ts` membuang skema `public` di `undian_test` lalu menjalankan `prisma migrate deploy` sekali per run. Tes membuat akun dengan username acak dan tidak menghapus data (tabel audit immutable). `LOG_LEVEL=error` di env tes; tes yang sengaja memicu error membisukan log dengan `senyapkanLog()`.
+- `test:e2e`: `tests/e2e/global-setup.ts` membuat database `undian_e2e` baru (server PostgreSQL yang sama, port 5433), menerapkan migrasi, lalu memanaskan server (login + membuka halaman Panel). Memakai 2 worker karena satu server produksi dipakai bersama. `E2E_LOG_LEVEL=info` menampilkan log server untuk menelusuri tes lambat. Jalankan `npm run db:test:up` lebih dulu; `test:int` dan `test:e2e` tidak boleh berjalan bersamaan.
+- Tes Panel mengukur ukuran dan warna dari DOM (`tampilan-panel.spec.ts`) dan menyimpan tangkapan layar ke `test-results/visual/` sebagai bukti visual.
 
 Semua perintah test berjalan sekali (tanpa watch). CI menjalankan: `lint` → `typecheck` → `test:unit` → `test:int` → `build` → `test:e2e`.
 
