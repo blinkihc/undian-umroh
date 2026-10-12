@@ -21,7 +21,7 @@ import { audit } from '@/server/audit';
 import { type PenggunaSesi } from '@/server/auth/sesi';
 import { getDb } from '@/server/db';
 import { AppError } from '@/server/errors';
-import { bacaCsv } from '@/server/impor/baca-csv';
+import { bacaFileImpor } from '@/server/impor/baca-file';
 import { type FormImpor } from '@/server/impor/form';
 import { enkripsiNik } from '@/server/nik';
 import { type KonteksRequest } from '@/server/request';
@@ -55,8 +55,6 @@ const UKURAN_BATCH = 1000;
 
 /** Impor 46.000 baris butuh lebih dari batas transaksi bawaan Prisma (5 detik). */
 const OPSI_TRANSAKSI = { timeout: 120_000, maxWait: 10_000 } as const;
-
-const POLA_EKSTENSI = /\.([a-z0-9]+)$/i;
 
 type BarisImpor = {
   id: string;
@@ -157,19 +155,8 @@ function galatVersi(versionSekarang: number): AppError {
 }
 
 /** Pemeriksaan tingkat file; kegagalan menolak impor seluruhnya (ERROR_HANDLING, impor). */
-function bacaIsiFile(file: FormImpor): { peta: PetaKolom; baris: string[][] } {
-  const ekstensi = POLA_EKSTENSI.exec(file.nama)?.[1]?.toLowerCase();
-  if (ekstensi === 'xlsx') {
-    throw new AppError(
-      'FILE_TIDAK_VALID',
-      400,
-      'Impor XLSX belum tersedia. Simpan file sebagai CSV (pemisah titik koma) lalu unggah lagi.',
-    );
-  }
-  if (ekstensi !== 'csv') {
-    throw new AppError('FILE_TIDAK_VALID', 400, 'File harus .csv atau .xlsx, maksimal 20 MB.');
-  }
-  const isi = bacaCsv(file.bytes);
+async function bacaIsiFile(file: FormImpor): Promise<{ peta: PetaKolom; baris: string[][] }> {
+  const isi = await bacaFileImpor(file);
   const header = periksaHeader(isi.header);
   if (!header.ok) {
     const { hilang = [], tidakDikenal = [] } = (header.details ?? {}) as {
@@ -285,7 +272,7 @@ export async function imporFile(masukan: {
 
   let isi: { peta: PetaKolom; baris: string[][] };
   try {
-    isi = bacaIsiFile(file);
+    isi = await bacaIsiFile(file);
   } catch (error) {
     if (error instanceof AppError) {
       await catatPenolakan({ aktor, periodeId, file, sha256, galat: error, konteks });

@@ -17,3 +17,5 @@ next-env.d.ts
 docs/contoh data.*
 # Klien Prisma hasil generate (npm run db:generate)
 src/generated/
+# Fixture sintetis besar (npm run fixture:generate)
+tests/fixtures/impor/generated/

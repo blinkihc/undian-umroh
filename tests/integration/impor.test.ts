@@ -44,7 +44,8 @@ function formImpor(
 ): FormData {
   const form = new FormData();
   const bagian = typeof isi === 'string' ? isi : new Uint8Array(isi);
-  form.set('file', new File([bagian], opsi.nama ?? 'ekspor-pbb.csv', { type: 'text/csv' }));
+  // Tanpa MIME (seperti sebagian peramban); konsistensi MIME diuji di impor-xlsx.test.ts.
+  form.set('file', new File([bagian], opsi.nama ?? 'ekspor-pbb.csv'));
   form.set('version', String(opsi.version ?? periode.version));
   return form;
 }
@@ -245,19 +246,16 @@ describe('POST /api/periode/:id/impor', () => {
     });
   });
 
-  it('file bukan UTF-8 atau biner ditolak dengan pesan simpan ulang', async () => {
-    const latin1 = Buffer.from(csv(BARIS_LOLOS.replace('WAJIB PAJAK', 'WAJIB PAJ\xC4K')), 'latin1');
-    const biner = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x00, 0x00]);
+  it('file biner ditolak dengan pesan simpan ulang (CSV Windows-1252 diuji di impor-xlsx.test.ts)', async () => {
+    const biner = new Uint8Array([0x41, 0x42, 0x00, 0x43]);
 
-    for (const isi of [latin1, biner]) {
-      expect(await galat(await impor(formImpor(isi)))).toMatchObject({
-        code: 'FILE_TIDAK_VALID',
-        message: 'File tidak dapat dibaca. Simpan ulang sebagai CSV UTF-8.',
-      });
-    }
+    expect(await galat(await impor(formImpor(biner)))).toMatchObject({
+      code: 'FILE_TIDAK_VALID',
+      message: 'File tidak dapat dibaca. Simpan ulang sebagai CSV UTF-8.',
+    });
   });
 
-  it('ekstensi selain .csv ditolak; XLSX diberi pesan sementara', async () => {
+  it('ekstensi selain .csv/.xlsx ditolak; isi bukan zip berekstensi .xlsx ditolak', async () => {
     expect(
       await galat(await impor(formImpor(csv(BARIS_LOLOS), { nama: 'data.txt' }))),
     ).toMatchObject({
@@ -265,7 +263,7 @@ describe('POST /api/periode/:id/impor', () => {
       message: 'File harus .csv atau .xlsx, maksimal 20 MB.',
     });
     expect((await galat(await impor(formImpor('x', { nama: 'data.XLSX' })))).message).toMatch(
-      /^Impor XLSX belum tersedia/,
+      /^Isi file tidak sesuai ekstensinya/,
     );
   });
 

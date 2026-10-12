@@ -88,7 +88,9 @@ Kesalahan baris tidak menghentikan impor; baris ditandai gugur dengan kode alasa
 | Jumlah kolom baris tidak sesuai | Baris gugur (`FORMAT_BARIS`), baris lain tetap diproses. |
 | NOP/tanggal/nama/kecamatan bermasalah | Baris gugur dengan kode alasan yang sesuai (semua alasan ditampilkan). |
 | NIK tidak valid | Peringatan saja; baris tidak gugur. |
-| Lebih dari 100.000 baris atau XLSX tak terkompresi > 200 MB | Ditolak (`FILE_TIDAK_VALID`), perlindungan zip bomb. |
+| Lebih dari 100.000 baris atau XLSX tak terkompresi > 200 MB | Ditolak (`FILE_TIDAK_VALID`), perlindungan zip bomb: "File berisi lebih dari 100.000 baris data." / "Isi file XLSX terlalu besar (lebih dari 200 MB setelah diurai)." |
+| Ekstensi, MIME, dan isi tidak konsisten | Ditolak: "Isi file tidak sesuai ekstensinya. Simpan ulang sebagai .csv (pemisah titik koma) atau .xlsx." |
+| XLSX rusak / bukan workbook | Ditolak: "File XLSX rusak atau bukan workbook Excel. Simpan ulang dari Excel lalu coba lagi." |
 | Proses terputus (koneksi putus, server restart) | Transaksi di-rollback; data periode lama tetap utuh. Admin mengulang impor. |
 
 ---

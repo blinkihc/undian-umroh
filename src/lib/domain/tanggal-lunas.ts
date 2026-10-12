@@ -93,6 +93,31 @@ export function parseTanggalLunas(nilai: string | number): Result<Date, GalatTan
     : { ok: true, value: waktu };
 }
 
+function dua(n: number): string {
+  return n.toString().padStart(2, '0');
+}
+
+/**
+ * Teks `dd/mm/yyyy HH:MM:SS` (format utama file ekspor) dari waktu WIB. Dipakai untuk menyimpan
+ * sel tanggal XLSX sebagai nilai asli yang dapat dibaca ulang `parseTanggalLunas`.
+ */
+export function formatTanggalLunas(waktu: Date): string {
+  const g = new Date(waktu.getTime() + OFFSET_WIB_MS);
+  return `${dua(g.getUTCDate())}/${dua(g.getUTCMonth() + 1)}/${g.getUTCFullYear().toString()} ${dua(g.getUTCHours())}:${dua(g.getUTCMinutes())}:${dua(g.getUTCSeconds())}`;
+}
+
+/**
+ * Teks sel angka XLSX. Bilangan bulat di luar rentang aman (mis. NOP 18 digit yang tersimpan
+ * sebagai angka) sudah kehilangan presisi di Excel, jadi ditulis dalam notasi ilmiah agar
+ * dikenali tidak valid, bukan berubah diam-diam menjadi NOP lain.
+ */
+export function teksSelAngka(nilai: number): string {
+  if (Number.isInteger(nilai) && !Number.isSafeInteger(nilai)) {
+    return nilai.toExponential().toUpperCase();
+  }
+  return nilai.toString();
+}
+
 /** Awal tahun pajak (1 Januari 00:00:00 WIB). */
 export function awalTahunWib(tahun: number): Date {
   return new Date(Date.UTC(tahun, 0, 1) - OFFSET_WIB_MS);

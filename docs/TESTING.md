@@ -310,7 +310,7 @@ Type Check:
 Lainnya:
 - `npm run db:test:up` — jalankan PostgreSQL test (Docker)
 - `npm run db:generate` / `db:migrate` / `db:migrate:deploy` / `db:seed` — klien Prisma, migrasi pengembangan, migrasi produksi, dan seed Admin dari `SEED_ADMIN_*` (idempoten)
-- `npm run fixture:generate -- --rows 46000` — data sintetis
+- `npm run fixture:generate -- --rows 46000` — data sintetis (opsi `--format csv|xlsx`, `--seed`, `--out`; bawaan ke `tests/fixtures/impor/generated/`, di-gitignore). Generator deterministik ada di `scripts/lib/data-sintetis.ts` dan dipakai langsung oleh tes `@slow` `tests/integration/impor-besar.test.ts`.
 - `npm run simulate-draw -- --w1 50 --w2 40` — simulasi undian CLI
 
 Catatan lingkungan tes:

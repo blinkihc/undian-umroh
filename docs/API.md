@@ -144,7 +144,8 @@ Response `200`: objek periode lengkap berstatus `DIBATALKAN` dengan `alasanBatal
 Authentication: Required (ADMIN)
 Request: `multipart/form-data`, field `file` (`.csv` atau `.xlsx`, ≤ 20 MB), field `version`; field lain ditolak.
 Validation: periode `DRAF` (selain itu `409 PERIODE_TERKUNCI`, diperiksa sebelum versi); `version` basi → `409 CONFLICT`; header 12 kolom (PRD §6.0). Impor berhasil menaikkan `periode.version` dan mengganti seluruh peserta periode dalam satu transaksi; audit `IMPOR_BERHASIL`. Penolakan tingkat file dicatat `IMPOR_DITOLAK`.
-Error file: `413 FILE_TERLALU_BESAR`; `400 FILE_TIDAK_VALID` untuk ekstensi bukan `.csv`/`.xlsx`, file kosong/hanya header ("File tidak berisi data peserta."), lebih dari 100.000 baris, atau bukan UTF-8/berisi byte NUL ("File tidak dapat dibaca. Simpan ulang sebagai CSV UTF-8."). Sampai tiket 07, `.xlsx` dan CSV Windows-1252 masih ditolak `FILE_TIDAK_VALID` dengan pesan arahan.
+Error file: `413 FILE_TERLALU_BESAR`; `400 FILE_TIDAK_VALID` untuk ekstensi bukan `.csv`/`.xlsx`, ekstensi/MIME/isi tidak konsisten, file kosong/hanya header ("File tidak berisi data peserta."), lebih dari 100.000 baris, XLSX rusak atau tanpa `xl/workbook.xml`, XLSX terurai > 200 MB, atau CSV yang bukan UTF-8 maupun Windows-1252/berisi byte NUL/UTF-16 ("File tidak dapat dibaca. Simpan ulang sebagai CSV UTF-8.").
+Pembacaan: CSV UTF-8 (BOM dibuang), bila gagal Windows-1252. XLSX dari sheet pertama, semua sel menjadi teks: rumus tidak dievaluasi (hasil tersimpan dipakai), sel tanggal/serial di kolom "Tanggal Lunas" ditulis `dd/mm/yyyy HH:MM:SS` (WIB), angka bulat di luar rentang aman (mis. NOP 18 digit yang tersimpan sebagai angka) ditulis notasi ilmiah sehingga `NOP_INVALID`. MIME CSV yang diterima: `text/csv`, `application/csv`, `text/plain`, `application/vnd.ms-excel`, kosong, atau `application/octet-stream`.
 Response `200`:
 ```json
 {

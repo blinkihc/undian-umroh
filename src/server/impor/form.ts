@@ -14,7 +14,7 @@ const PESAN_TERLALU_BESAR = 'File harus .csv atau .xlsx, maksimal 20 MB.';
 
 const VersionSchema = z.coerce.number().int().min(1);
 
-export type FormImpor = { nama: string; bytes: Uint8Array; version: number };
+export type FormImpor = { nama: string; mime: string; bytes: Uint8Array; version: number };
 
 /**
  * Membaca `multipart/form-data` impor: field `file` dan `version`, tanpa field lain. Ukuran
@@ -46,6 +46,7 @@ export async function bacaFormImpor(request: Request): Promise<FormImpor> {
   }
   return {
     nama: file.name,
+    mime: file.type,
     bytes: new Uint8Array(await file.arrayBuffer()),
     version: version.data,
   };
