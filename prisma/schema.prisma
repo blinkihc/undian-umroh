@@ -34,8 +34,11 @@ model Pengguna {
   auditLog        AuditLog[]
   periodeDibuat   Periode[]
   imporDibuat     Impor[]
-  snapshotDikunci Snapshot[]
-  paketDiunduh    PaketUnduhan[]
+  snapshotDikunci       Snapshot[]
+  paketDiunduh          PaketUnduhan[]
+  hasilDiunggah         HasilUndian[]
+  slotHasilDiubah       SlotHasil[]             @relation("SlotHasilStatusChangedBy")
+  riwayatStatusPemenang RiwayatStatusPemenang[]
 
   @@map("pengguna")
 }
@@ -52,6 +55,23 @@ enum StatusPeriode {
 enum KodeWilayah {
   W1
   W2
+}
+
+enum KodeSlot {
+  W1_UTAMA
+  W1_C1
+  W1_C2
+  W2_UTAMA
+  W2_C1
+  W2_C2
+}
+
+enum StatusPemenang {
+  MENANG
+  CADANGAN
+  TERVERIFIKASI
+  GUGUR
+  PERLU_KEPUTUSAN
 }
 
 /// Satu penyelenggaraan undian. Hanya satu periode aktif (selain DIPUBLIKASI dan DIBATALKAN):
@@ -83,8 +103,10 @@ model Periode {
   impor     Impor[]
   peserta   Peserta[]
   kecamatan KecamatanWilayah[]
-  snapshot  Snapshot?
+  snapshot     Snapshot?
   paketUnduhan PaketUnduhan[]
+  hasilUndian  HasilUndian?
+  slotHasil    SlotHasil[]
 
   @@map("periode")
 }
@@ -146,6 +168,7 @@ model Peserta {
   periode         Periode          @relation(fields: [periodeId], references: [id], onDelete: Restrict)
   impor           Impor            @relation(fields: [imporId], references: [id], onDelete: Cascade)
   snapshotPeserta SnapshotPeserta?
+  slotHasil       SlotHasil[]
 
   @@index([periodeId, eligible])
   @@index([periodeId, kecamatan])
@@ -261,5 +284,75 @@ model PaketUnduhan {
 
   @@index([periodeId, createdAt(sort: Desc)])
   @@map("paket_unduhan")
+}
+
+/// File hasil yang diterima dan lolos verifikasi (DATABASE §3).
+/// Tabel append-only: trigger database menolak UPDATE, DELETE, dan TRUNCATE.
+model HasilUndian {
+  id           String   @id @default(cuid(2))
+  periodeId    String   @unique @map("periode_id")
+  hasilHash    String   @map("hasil_hash")
+  snapshotHash String   @map("snapshot_hash")
+  isi          Json     @map("isi")
+  dimulaiAt    DateTime @map("dimulai_at") @db.Timestamptz(3)
+  selesaiAt    DateTime @map("selesai_at") @db.Timestamptz(3)
+  uploadedById String   @map("uploaded_by_id")
+  uploadedAt   DateTime @default(now()) @map("uploaded_at") @db.Timestamptz(3)
+
+  periode    Periode     @relation(fields: [periodeId], references: [id], onDelete: Restrict)
+  uploadedBy Pengguna    @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  slotHasil  SlotHasil[]
+
+  @@map("hasil_undian")
+}
+
+/// Enam slot pemenang dan status terkini (DATABASE §3).
+model SlotHasil {
+  id                String         @id @default(cuid(2))
+  hasilId           String         @map("hasil_id")
+  periodeId         String         @map("periode_id")
+  slot              KodeSlot
+  urutan            Int
+  wilayah           KodeWilayah
+  snapshotUrut      Int            @map("snapshot_urut")
+  pesertaId         String         @map("peserta_id")
+  diundiAt          DateTime       @map("diundi_at") @db.Timestamptz(3)
+  status            StatusPemenang
+  penerimaAktif     Boolean        @default(false) @map("penerima_aktif")
+  alasanGugur       String?        @map("alasan_gugur")
+  catatan           String?
+  statusChangedById String?        @map("status_changed_by_id")
+  statusChangedAt   DateTime?      @map("status_changed_at") @db.Timestamptz(3)
+  version           Int            @default(1)
+
+  hasil           HasilUndian             @relation(fields: [hasilId], references: [id], onDelete: Restrict)
+  periode         Periode                 @relation(fields: [periodeId], references: [id], onDelete: Restrict)
+  peserta         Peserta                 @relation(fields: [pesertaId], references: [id], onDelete: Restrict)
+  statusChangedBy Pengguna?               @relation("SlotHasilStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: Restrict)
+  riwayatStatus   RiwayatStatusPemenang[]
+
+  @@unique([periodeId, slot])
+  @@unique([periodeId, pesertaId])
+  @@index([periodeId, wilayah])
+  @@index([hasilId])
+  @@map("slot_hasil")
+}
+
+/// Jejak setiap perubahan status slot untuk berita acara (DATABASE §3).
+model RiwayatStatusPemenang {
+  id          String         @id @default(cuid(2))
+  slotHasilId String         @map("slot_hasil_id")
+  dari        StatusPemenang
+  ke          StatusPemenang
+  alasanGugur String?        @map("alasan_gugur")
+  catatan     String?
+  olehId      String         @map("oleh_id")
+  at          DateTime       @default(now()) @db.Timestamptz(3)
+
+  slotHasil SlotHasil @relation(fields: [slotHasilId], references: [id], onDelete: Restrict)
+  oleh      Pengguna  @relation(fields: [olehId], references: [id], onDelete: Restrict)
+
+  @@index([slotHasilId, at(sort: Desc)])
+  @@map("riwayat_status_pemenang")
 }
 
