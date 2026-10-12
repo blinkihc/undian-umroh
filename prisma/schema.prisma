@@ -35,6 +35,7 @@ model Pengguna {
   periodeDibuat   Periode[]
   imporDibuat     Impor[]
   snapshotDikunci Snapshot[]
+  paketDiunduh    PaketUnduhan[]
 
   @@map("pengguna")
 }
@@ -83,6 +84,7 @@ model Periode {
   peserta   Peserta[]
   kecamatan KecamatanWilayah[]
   snapshot  Snapshot?
+  paketUnduhan PaketUnduhan[]
 
   @@map("periode")
 }
@@ -242,5 +244,22 @@ model SnapshotPeserta {
   @@id([snapshotId, urut])
   @@unique([snapshotId, nop])
   @@map("snapshot_peserta")
+}
+
+/// Riwayat unduhan paket undian (DATABASE §3). Bukti versi tema yang dipakai di acara.
+model PaketUnduhan {
+  id             String   @id @default(cuid(2))
+  periodeId      String   @map("periode_id")
+  snapshotHash   String   @map("snapshot_hash")
+  temaConfigHash String   @map("tema_config_hash")
+  paketSha256    String   @map("paket_sha256")
+  unduhById      String   @map("unduh_by_id")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  periode Periode  @relation(fields: [periodeId], references: [id], onDelete: Restrict)
+  unduhBy Pengguna @relation(fields: [unduhById], references: [id], onDelete: Restrict)
+
+  @@index([periodeId, createdAt(sort: Desc)])
+  @@map("paket_unduhan")
 }
 
