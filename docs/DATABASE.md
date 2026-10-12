@@ -85,18 +85,18 @@ Columns:
 | Kolom | Tipe | Aturan |
 |---|---|---|
 | `id` | text PK | |
-| `slug` | text | unik, dari judul + tahun, mis. `undian-umroh-2026` |
+| `slug` | text | unik, `undian-umroh-<tahun_akhir>`; bila sudah dipakai (mis. periode dibatalkan) diberi akhiran `-2`, `-3`, …; tidak berubah saat judul diubah (dipakai nama file paket) |
 | `judul` | text | wajib, default "Undian Umroh Wajib Pajak PBB-P2 OKU Selatan Tahun 2026" |
 | `tahun_awal` | int | 2022 |
 | `tahun_akhir` | int | 2026 |
-| `batas_lunas` | timestamptz | default `2026-09-30T23:59:59+07:00` |
+| `batas_lunas` | timestamptz | wajib; nilai bawaan `2026-09-30T23:59:59+07:00` diisi aplikasi (`BATAS_LUNAS_BAWAAN`), bukan default DB, agar tidak bergantung zona waktu server |
 | `tanggal_acara` | date | nullable |
-| `lokasi_acara` | text | nullable |
+| `lokasi_acara` | text | nullable, maks. 150 karakter |
 | `status` | `StatusPeriode` | default `DRAF` |
 | `tema_id` | text FK → `tema.id` | nullable (null = tema default) |
 | `published_at` | timestamptz | nullable |
-| `alasan_batal` | text | wajib jika `DIBATALKAN` |
-| `version` | int | default 1, naik setiap update (optimistic concurrency) |
+| `alasan_batal` | text | wajib (≥ 10 karakter) jika `DIBATALKAN` — CHECK `periode_alasan_batal_check` |
+| `version` | int | default 1, `CHECK >= 1`, naik setiap update termasuk ubah nama wilayah (optimistic concurrency) |
 | `created_by_id` | text FK → `pengguna.id` | |
 | `created_at`, `updated_at` | timestamptz | |
 
@@ -113,7 +113,7 @@ Columns:
 | `id` | text PK | |
 | `periode_id` | text FK | |
 | `kode` | `KodeWilayah` | unik bersama `periode_id` |
-| `nama` | text | default "Wilayah 1" / "Wilayah 2" |
+| `nama` | text | bawaan "Wilayah 1" / "Wilayah 2" (diisi aplikasi); 1–50 karakter (CHECK `wilayah_nama_check`) |
 
 Dibuat otomatis (2 baris) saat periode dibuat.
 
@@ -473,7 +473,8 @@ Filter log audit.
 - Tabel `peserta`, `kecamatan_wilayah`, `periode.batas_lunas` hanya boleh berubah saat `status = DRAF`.
 - `snapshot`, `snapshot_peserta`, `hasil_undian` **immutable**: tidak ada UPDATE/DELETE di kode aplikasi. Trigger PostgreSQL `BEFORE UPDATE OR DELETE` menolak perubahan (dibuat di migrasi).
 - `audit_log` append-only: trigger menolak UPDATE/DELETE (per baris) dan TRUNCATE (per pernyataan) lewat fungsi `tolak_ubah_tabel_immutable()` yang dipakai ulang oleh tabel immutable lain. Tes membuat akun dengan username acak dan tidak menghapus data; pembersihan massal di tes memakai `session_replication_role = replica`.
-- Tabel yang sudah ada di skema (tiket 02): `pengguna` dan `audit_log`; tabel lain menyusul bersama tiket pemiliknya.
+- Tabel yang sudah ada di skema: `pengguna`, `audit_log` (tiket 02) serta `periode`, `wilayah` (tiket 04); tabel lain menyusul bersama tiket pemiliknya. Kolom `periode.tema_id` ditambahkan oleh tiket tema.
+- Pembuatan periode memakai `pg_advisory_xact_lock(hashtext('periode:satu-aktif'))` agar dua permintaan bersamaan diproses bergiliran dengan pesan `PERIODE_AKTIF_SUDAH_ADA` yang jelas; index `periode_satu_aktif` tetap penjaga terakhir.
 - `slot_hasil`: hanya kolom status yang boleh berubah, lewat service pemenang dengan `version`.
 
 ---

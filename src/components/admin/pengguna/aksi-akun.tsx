@@ -3,11 +3,10 @@
 import { type ReactElement, type SyntheticEvent, useState } from 'react';
 
 import { kirimJson } from '@/client/api';
+import { galatPerField, teksForm } from '@/client/form';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { UbahPenggunaSchema } from '@/lib/domain';
-
-import { galatPerField, teksForm } from './bantuan';
 
 export type AkunAksi = {
   id: string;

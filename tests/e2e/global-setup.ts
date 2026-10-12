@@ -73,6 +73,8 @@ async function hangatkanServer(): Promise<void> {
       '/admin',
       '/admin/pengguna',
       '/admin/audit',
+      '/admin/periode',
+      '/admin/periode/baru',
       '/operator',
       '/akun/ganti-password',
     ]) {

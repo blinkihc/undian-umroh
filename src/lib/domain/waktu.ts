@@ -37,6 +37,17 @@ export function isoWib(waktu: Date): string {
   return `${b.tahun.toString()}-${dua(b.bulan)}-${dua(b.hari)}T${dua(b.jam)}:${dua(b.menit)}:${dua(b.detik)}+07:00`;
 }
 
+/** Tanggal kalender WIB `YYYY-MM-DD` dari sebuah Date (mis. untuk kolom `date` dan isian form). */
+export function tanggalWib(waktu: Date): string {
+  const b = bagianWib(waktu);
+  return `${b.tahun.toString()}-${dua(b.bulan)}-${dua(b.hari)}`;
+}
+
+/** Tampilan tanggal saja, mis. `20/10/2026`, dari tanggal `YYYY-MM-DD` yang sudah divalidasi. */
+export function formatTanggal(tanggal: string): string {
+  return tanggal.replace(POLA_TANGGAL, '$3/$2/$1');
+}
+
 /** Tampilan antarmuka, mis. `12/10/2026 14:05:03 WIB`. */
 export function formatWaktuWib(waktu: Date): string {
   const b = bagianWib(waktu);

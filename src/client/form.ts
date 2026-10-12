@@ -4,13 +4,16 @@ export function teksForm(data: FormData, nama: string): string {
   return typeof nilai === 'string' ? nilai : '';
 }
 
-/** Galat zod per nama field teratas (pesan pertama per field). */
+/**
+ * Galat zod per nama field (pesan pertama per field). Field bersarang memakai titik, mis.
+ * `namaWilayah.W1`, sama dengan `details.fields` dari server.
+ */
 export function galatPerField(
   isu: readonly { path: readonly PropertyKey[]; message: string }[],
 ): Record<string, string> {
   const hasil: Record<string, string> = {};
   for (const i of isu) {
-    const nama = String(i.path[0] ?? '');
+    const nama = i.path.map(String).join('.');
     hasil[nama] ??= i.message;
   }
   return hasil;

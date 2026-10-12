@@ -40,7 +40,7 @@
 | 401 | Belum login / sesi habis | `TIDAK_TERAUTENTIKASI` |
 | 403 | Peran tidak berhak / Origin salah / wajib ganti kata sandi | `AKSES_DITOLAK`, `PASSWORD_HARUS_DIGANTI` |
 | 404 | Resource tidak ada | `TIDAK_DITEMUKAN` |
-| 409 | Konflik status/versi/duplikat | `CONFLICT`, `PERIODE_TERKUNCI`, `HASIL_SUDAH_DIUNGGAH` |
+| 409 | Konflik status/versi/duplikat | `CONFLICT`, `USERNAME_SUDAH_DIPAKAI`, `PERIODE_TERKUNCI`, `PERIODE_AKTIF_SUDAH_ADA`, `HASIL_SUDAH_DIUNGGAH` |
 | 413 | File terlalu besar | `FILE_TERLALU_BESAR` |
 | 422 | Aturan bisnis gagal | `PRASYARAT_KUNCI_BELUM_LENGKAP`, `HASIL_TIDAK_VALID` |
 | 429 | Rate limit | `TERLALU_BANYAK_PERMINTAAN` |
@@ -87,12 +87,14 @@ Request:
 }
 ```
 Validation:
-- `judul` wajib, 5–150 karakter
-- `batasLunas` wajib, ISO 8601, tidak lebih awal dari `2026-01-01`
-- `namaWilayah.*` 1–50 karakter
-- Tidak ada periode aktif lain → jika ada `409 PERIODE_AKTIF_SUDAH_ADA`
+- `judul` wajib, 5–150 karakter (dirapikan)
+- `batasLunas` wajib, ISO 8601 dengan zona waktu, tidak lebih awal dari `2026-01-01T00:00:00+07:00`. Form Admin memilih tanggal saja dan mengirim `<tanggal>T23:59:59+07:00`.
+- `tanggalAcara` opsional, `YYYY-MM-DD` atau `null`; `lokasiAcara` opsional, maks. 150 karakter (kosong → `null`)
+- `namaWilayah` opsional; `W1`/`W2` masing-masing opsional 1–50 karakter, yang tidak dikirim memakai "Wilayah 1"/"Wilayah 2"
+- Tahun pajak tetap 2022–2026 (tidak dapat dikirim); `slug` dibuat server (DATABASE §3)
+- Tidak ada periode aktif lain → jika ada `409 PERIODE_AKTIF_SUDAH_ADA` dengan `details: { periodeId, judul, status }`
 
-Response `201`: objek periode lengkap (seperti `GET /api/periode/:id`).
+Response `201`: objek periode lengkap (seperti `GET /api/periode/:id`). Audit `PERIODE_BUAT`.
 
 #### GET /api/periode/:id
 Authentication: Required (ADMIN, OPERATOR)
@@ -113,6 +115,7 @@ Response:
   "version": 7
 }
 ```
+Field lengkap: semua field `GET /api/periode` ditambah `tahunAwal`, `tahunAkhir`, `wilayah`, `snapshot`, `hasil`, `publishedAt`, `alasanBatal`, `createdAt`, `updatedAt`. Sampai tiket impor/pemetaan, `jumlahLolos` bernilai 0; `snapshot` dan `hasil` `null` sampai tiket kunci/unggah hasil. Periode tidak ada → `404 TIDAK_DITEMUKAN`. Daftar `GET /api/periode` terurut dari periode terbaru.
 
 #### PATCH /api/periode/:id
 Authentication: Required (ADMIN)
@@ -121,13 +124,19 @@ Request (semua opsional kecuali `version`):
 { "version": 3, "judul": "…", "batasLunas": "2026-09-30T23:59:59+07:00", "tanggalAcara": "2026-10-20", "lokasiAcara": "…", "namaWilayah": { "W1": "Wilayah Barat" } }
 ```
 Validation:
-- `batasLunas` hanya boleh berubah saat `DRAF` → memicu evaluasi ulang seluruh peserta (respons memuat ringkasan baru)
-- `judul`, `tanggalAcara`, `lokasiAcara`, `namaWilayah` boleh berubah sampai `FINAL`
+- Minimal satu field selain `version`; aturan per field sama dengan `POST`
+- `batasLunas` hanya boleh berubah saat `DRAF` → memicu evaluasi ulang seluruh peserta (respons memuat ringkasan baru; aktif sejak tiket impor). Selain Draf → `409 PERIODE_TERKUNCI` `details.alasan = BATAS_HANYA_DRAF`
+- `judul`, `tanggalAcara`, `lokasiAcara`, `namaWilayah` boleh berubah pada status `DRAF`, `TERKUNCI`, `DIUNDI`, dan `FINAL` (inklusif); `DIPUBLIKASI`/`DIBATALKAN` → `409 PERIODE_TERKUNCI`
+- `version` basi → `409 CONFLICT` dengan `details.version` terkini. Status diperiksa lebih dulu dari versi.
+- Field yang nilainya sama diabaikan; tanpa perubahan nyata `version` tidak naik dan audit tidak ditulis. Audit `PERIODE_UBAH` (`payload.perubahan.<field> = { lama, baru }`) dan/atau `WILAYAH_NAMA_UBAH` (`payload.perubahan.W1 = { lama, baru }`).
+
+Response `200`: objek periode lengkap.
 
 #### POST /api/periode/:id/batal
 Authentication: Required (ADMIN)
 Request: `{ "version": 7, "alasan": "Data ekspor salah kecamatan, akan diimpor ulang di periode baru" }`
-Validation: status `DRAF` atau `TERKUNCI` tanpa hasil; `alasan` 10–500 karakter.
+Validation: status `DRAF` atau `TERKUNCI` tanpa hasil; `alasan` 10–500 karakter (dirapikan). Status lain → `409 PERIODE_TERKUNCI` (`details.alasan`: `PERIODE_SUDAH_DIUNDI`, `PERIODE_SUDAH_DIPUBLIKASI`, atau `PERIODE_SUDAH_DIBATALKAN` — Dibatalkan bersifat final). `version` basi → `409 CONFLICT`.
+Response `200`: objek periode lengkap berstatus `DIBATALKAN` dengan `alasanBatal`. Audit `PERIODE_BATAL` (`judul`, `statusSebelumnya`, `alasan`).
 
 ### Impor & Peserta
 

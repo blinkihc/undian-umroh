@@ -2,11 +2,24 @@ import { describe, expect, it } from 'vitest';
 
 import {
   awalHariWib,
+  formatTanggal,
   formatWaktuWib,
   isTanggalKalender,
   isoWib,
   rentangTanggalWib,
+  tanggalWib,
 } from '@/lib/domain';
+
+describe('tanggalWib dan formatTanggal', () => {
+  it('mengambil tanggal kalender WIB, termasuk lewat tengah malam WIB', () => {
+    expect(tanggalWib(new Date('2026-09-30T16:59:59Z'))).toBe('2026-09-30');
+    expect(tanggalWib(new Date('2026-09-30T17:00:00Z'))).toBe('2026-10-01');
+  });
+
+  it('menampilkan tanggal sebagai DD/MM/YYYY', () => {
+    expect(formatTanggal('2026-10-20')).toBe('20/10/2026');
+  });
+});
 
 describe('isoWib dan formatWaktuWib', () => {
   it('menulis waktu UTC sebagai WIB (+07:00), termasuk pergantian hari', () => {

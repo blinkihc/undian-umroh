@@ -3,13 +3,12 @@
 import { type ReactElement, type SyntheticEvent, useState } from 'react';
 
 import { kirimJson } from '@/client/api';
+import { galatPerField, teksForm } from '@/client/form';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { SelectField } from '@/components/ui/select-field';
 import { BuatPenggunaSchema } from '@/lib/domain';
-
-import { galatPerField, teksForm } from './bantuan';
 
 type FormTambahPenggunaProps = {
   onBerhasil: (username: string) => void;

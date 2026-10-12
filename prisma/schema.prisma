@@ -31,9 +31,67 @@ model Pengguna {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  auditLog AuditLog[]
+  auditLog      AuditLog[]
+  periodeDibuat Periode[]
 
   @@map("pengguna")
+}
+
+enum StatusPeriode {
+  DRAF
+  TERKUNCI
+  DIUNDI
+  FINAL
+  DIPUBLIKASI
+  DIBATALKAN
+}
+
+enum KodeWilayah {
+  W1
+  W2
+}
+
+/// Satu penyelenggaraan undian. Hanya satu periode aktif (selain DIPUBLIKASI dan DIBATALKAN):
+/// dijaga index unik parsial `periode_satu_aktif` yang ditulis manual di migrasi.
+model Periode {
+  id           String        @id @default(cuid(2))
+  /// Unik, mis. `undian-umroh-2026`; tidak berubah saat judul diubah.
+  slug         String        @unique
+  judul        String
+  tahunAwal    Int           @default(2022) @map("tahun_awal")
+  tahunAkhir   Int           @default(2026) @map("tahun_akhir")
+  /// Inklusif. Hanya boleh berubah saat DRAF (DECISIONS 005). Nilai bawaan diisi aplikasi
+  /// (`BATAS_LUNAS_BAWAAN`), bukan default DB, agar tidak bergantung zona waktu server.
+  batasLunas   DateTime      @map("batas_lunas") @db.Timestamptz(3)
+  tanggalAcara DateTime?     @map("tanggal_acara") @db.Date
+  lokasiAcara  String?       @map("lokasi_acara")
+  status       StatusPeriode @default(DRAF)
+  publishedAt  DateTime?     @map("published_at") @db.Timestamptz(3)
+  /// Wajib bila DIBATALKAN (CHECK constraint di migrasi).
+  alasanBatal  String?       @map("alasan_batal")
+  /// Naik setiap perubahan (optimistic concurrency, API.md §1).
+  version      Int           @default(1)
+  createdById  String        @map("created_by_id")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  createdBy Pengguna  @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  wilayah   Wilayah[]
+
+  @@map("periode")
+}
+
+/// Dua wilayah per periode (W1, W2), dibuat otomatis bersama periodenya.
+model Wilayah {
+  id        String      @id @default(cuid(2))
+  periodeId String      @map("periode_id")
+  kode      KodeWilayah
+  nama      String
+
+  periode Periode @relation(fields: [periodeId], references: [id], onDelete: Restrict)
+
+  @@unique([periodeId, kode])
+  @@map("wilayah")
 }
 
 /// Jejak aksi penting. Append-only: trigger database menolak UPDATE, DELETE, dan TRUNCATE.

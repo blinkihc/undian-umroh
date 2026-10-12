@@ -36,6 +36,21 @@ export async function buatPenggunaE2E(
   return { username, password: PASSWORD_E2E };
 }
 
+/**
+ * Mengosongkan periode dan turunannya agar tes periode mulai dari keadaan kosong (aturan satu
+ * periode aktif). Spesifikasi yang memakai helper ini berjalan serial.
+ */
+export async function kosongkanPeriode(): Promise<void> {
+  const klien = new Client({ connectionString: URL_DB_E2E });
+  await klien.connect();
+  try {
+    await klien.query('DELETE FROM wilayah');
+    await klien.query('DELETE FROM periode');
+  } finally {
+    await klien.end();
+  }
+}
+
 /** Jumlah baris audit untuk satu aksi dan pelaku. */
 export async function hitungAudit(aksi: string, aktorLabel: string): Promise<number> {
   const klien = new Client({ connectionString: URL_DB_E2E });

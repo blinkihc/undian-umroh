@@ -35,6 +35,7 @@ export default defineConfig({
         '**/login.spec.ts',
         '**/tampilan-panel.spec.ts',
         '**/kelola-pengguna.spec.ts',
+        '**/kelola-periode.spec.ts',
         '**/persiapan-periode.spec.ts',
         '**/pasca-undian.spec.ts',
         '**/publik.spec.ts',

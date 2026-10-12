@@ -201,7 +201,8 @@ Pedoman: kalimat pendek, sapaan "Anda", apa yang terjadi + langkah berikutnya, t
 |---|---|
 | `TIDAK_TERAUTENTIKASI` | Sesi Anda berakhir. Silakan masuk lagi. |
 | `AKSES_DITOLAK` | Anda tidak memiliki akses ke halaman ini. |
-| `PERIODE_TERKUNCI` | Periode sudah terkunci. Data tidak dapat diubah. |
+| `PERIODE_TERKUNCI` | Periode sudah terkunci. Data tidak dapat diubah. Varian per status (`details.alasan`): `BATAS_HANYA_DRAF` "Periode sudah terkunci. Tanggal batas hanya dapat diubah saat status Draf.", `PERIODE_SUDAH_DIPUBLIKASI` "Periode sudah dipublikasikan. Data tidak dapat diubah.", `PERIODE_SUDAH_DIBATALKAN` "Periode sudah dibatalkan. Data tidak dapat diubah.", `PERIODE_SUDAH_DIUNDI` "Periode yang sudah memiliki hasil undian tidak dapat dibatalkan." |
+| `PERIODE_AKTIF_SUDAH_ADA` | Masih ada periode aktif: {judul}. Publikasikan atau batalkan periode tersebut dulu. |
 | `PRASYARAT_KUNCI_BELUM_LENGKAP` | Data belum bisa dikunci. Selesaikan: 2 kecamatan belum dipetakan. |
 | `HASIL_SUDAH_DIUNGGAH` | Hasil periode ini sudah diunggah pada {waktu} oleh {nama}. Unggahan ditolak. |
 | `HASIL_TIDAK_VALID` | Isi file hasil tidak sesuai data terkunci ({pemeriksaan}). |

@@ -1,6 +1,6 @@
 'use client';
 
-import { LayoutDashboard, ScrollText, Users, type LucideIcon } from 'lucide-react';
+import { CalendarRange, LayoutDashboard, ScrollText, Users, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { type ReactElement } from 'react';
@@ -9,10 +9,12 @@ type ItemMenu = { href: string; label: string; Ikon: LucideIcon; tepat?: boolean
 
 /**
  * Menu Panel Admin (DESIGN_SYSTEM §11). Item ditambahkan oleh tiket pemilik fiturnya
- * (Periode, Tema Undian) saat halaman tersebut tersedia.
+ * (Tema Undian) saat halaman tersebut tersedia; sub-menu periode (Data Peserta, Wilayah, dst.)
+ * menjadi tab di halaman periode.
  */
 export const MENU_ADMIN: readonly ItemMenu[] = [
   { href: '/admin', label: 'Dasbor', Ikon: LayoutDashboard, tepat: true },
+  { href: '/admin/periode', label: 'Periode', Ikon: CalendarRange },
   { href: '/admin/pengguna', label: 'Pengguna', Ikon: Users },
   { href: '/admin/audit', label: 'Log Audit', Ikon: ScrollText },
 ];

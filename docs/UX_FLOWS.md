@@ -94,7 +94,13 @@ Diterjemahkan menjadi **Buat Periode Undian**.
 4. Admin menekan "Simpan"
 5. Server memvalidasi (judul wajib, tanggal batas valid, hanya satu periode aktif)
 6. Periode dibuat dengan status Draf
-7. Admin diarahkan ke halaman periode, tab "Data Peserta"
+7. Admin diarahkan ke halaman periode, tab "Data Peserta" (sebelum tab tersedia: halaman ringkasan periode `/admin/periode/:id` berisi Pengaturan Periode, form Ubah Periode, dan Batalkan Periode)
+
+Catatan implementasi (tiket 04):
+- Dasbor dan menu "Periode" (`/admin/periode`) menampilkan daftar periode berchip status. Selama ada periode aktif, tombol "Buat Periode" diganti keterangan alasannya.
+- Tanggal batas dipilih sebagai tanggal; berlaku sampai 23:59:59 WIB. Setelah Terkunci field ini nonaktif dengan alasan.
+- Batalkan Periode: tombol bahaya → konfirmasi sebaris dengan alasan wajib (10–500 karakter) → "Ya, batalkan periode". Periode Dibatalkan menampilkan banner alasan dan tidak dapat diubah.
+- Operator melihat daftar periode di `/operator` dan detail baca-saja di `/operator/periode/:id`.
 
 Loading State:
 Tombol "Simpan" spinner dan nonaktif.
