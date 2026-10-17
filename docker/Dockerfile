@@ -35,10 +35,14 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates wget && rm -rf /var/lib/apt/lists/*
 
+# Pasang CLI Prisma dan TSX secara global untuk kebutuhan migrasi & seed
+RUN npm install -g prisma@7.10.0 tsx
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+ENV NODE_PATH="/usr/local/lib/node_modules:/app/node_modules"
 
 # Buat grup dan pengguna non-root (UID/GID 1001) dengan HOME yang sah
 RUN addgroup --system --gid 1001 nodejs && \
@@ -57,10 +61,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
-
-# Pasang CLI prisma dan tsx beserta dependensi lengkapnya (effect, dsb.)
-RUN npm install prisma@7.10.0 tsx --no-save && \
-    chown -R nextjs:nodejs /app/node_modules
 
 USER nextjs
 
