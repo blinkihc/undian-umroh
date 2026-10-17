@@ -122,17 +122,13 @@ Setelah container aplikasi berjalan:
    ```bash
    npx prisma migrate deploy
    ```
-   *Catatan: Jika modul prisma belum termuat di environment runtime lama, jalankan:*
-   ```bash
-   HOME=/tmp npm i prisma@7.10.0 tsx --no-save && npx prisma migrate deploy
-   ```
    *Pastikan seluruh migration (20261012022717 sampai 20261012180000) sukses diterapkan.*
 
 3. Jalankan seeding akun Admin awal:
    ```bash
    npm run db:seed
    ```
-   *Sistem akan membuat akun Admin `admin.bapenda` dan tema bawaan undian.*
+   *Sistem akan membuat akun Admin `admin.bapenda` secara idempoten.*
 
 ---
 
