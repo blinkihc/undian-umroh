@@ -53,14 +53,14 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Salin CLI prisma, tsx, dan skrip untuk kebutuhan migrasi & seed di container
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/tsx ./node_modules/tsx
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin ./node_modules/.bin
+# Salin skrip dan prisma untuk kebutuhan migrasi & seed di container
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+
+# Pasang CLI prisma dan tsx beserta dependensi lengkapnya (effect, dsb.)
+RUN npm install prisma@7.10.0 tsx --no-save && \
+    chown -R nextjs:nodejs /app/node_modules
 
 USER nextjs
 
