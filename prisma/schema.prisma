@@ -39,6 +39,10 @@ model Pengguna {
   hasilDiunggah         HasilUndian[]
   slotHasilDiubah       SlotHasil[]             @relation("SlotHasilStatusChangedBy")
   riwayatStatusPemenang RiwayatStatusPemenang[]
+  beritaAcaraDiubah     BeritaAcara[]
+  temaDibuat            Tema[]                  @relation("TemaCreatedBy")
+  temaDiubah            Tema[]                  @relation("TemaUpdatedBy")
+  asetDibuat            Aset[]                  @relation("AsetCreatedBy")
 
   @@map("pengguna")
 }
@@ -107,6 +111,9 @@ model Periode {
   paketUnduhan PaketUnduhan[]
   hasilUndian  HasilUndian?
   slotHasil    SlotHasil[]
+  beritaAcara  BeritaAcara?
+  temaId       String?        @map("tema_id")
+  tema         Tema?          @relation(fields: [temaId], references: [id], onDelete: Restrict)
 
   @@map("periode")
 }
@@ -174,6 +181,7 @@ model Peserta {
   @@index([periodeId, kecamatan])
   @@index([periodeId, nop])
   @@index([alasan], type: Gin)
+  @@index([periodeId, baris])
   /// Btree biasa: `text_pattern_ops` tidak dapat dibaca balik oleh Prisma (selalu drift).
   @@index([periodeId, nama])
   @@map("peserta")
@@ -355,4 +363,78 @@ model RiwayatStatusPemenang {
   @@index([slotHasilId, at(sort: Desc)])
   @@map("riwayat_status_pemenang")
 }
+
+/// Field teks berita acara yang dapat diedit (DATABASE §3).
+model BeritaAcara {
+  id          String   @id @default(cuid(2))
+  periodeId   String   @unique @map("periode_id")
+  isi         Json     @map("isi")
+  version     Int      @default(1)
+  updatedById String   @map("updated_by_id")
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  periode   Periode  @relation(fields: [periodeId], references: [id], onDelete: Restrict)
+  updatedBy Pengguna @relation(fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@map("berita_acara")
+}
+
+enum JenisAset {
+  AUDIO
+  GAMBAR
+}
+
+enum FaseAudio {
+  MENUNGGU
+  MENGACAK
+  PEMENANG
+}
+
+enum SumberTema {
+  MANUAL
+  AI
+}
+
+/// Konfigurasi tampilan & suara Layar Undian (DATABASE §3).
+model Tema {
+  id          String     @id @default(cuid(2))
+  nama        String
+  config      Json       @map("config")
+  configHash  String     @map("config_hash")
+  sumber      SumberTema @default(MANUAL)
+  bawaan      Boolean    @default(false)
+  createdById String     @map("created_by_id")
+  updatedById String     @map("updated_by_id")
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  createdBy Pengguna  @relation("TemaCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy Pengguna  @relation("TemaUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  periode   Periode[]
+
+  @@map("tema")
+}
+
+/// Metadata file audio dan gambar (DATABASE §3). File fisik di storage/aset/<sha256>.<ext>
+model Aset {
+  id          String     @id @default(cuid(2))
+  jenis       JenisAset
+  fase        FaseAudio?
+  nama        String
+  deskripsi   String
+  mime        String
+  ukuran      Int
+  sha256      String     @unique
+  durasiDetik Decimal?   @map("durasi_detik") @db.Decimal(6, 2)
+  lisensi     String
+  bawaan      Boolean    @default(false)
+  createdById String?    @map("created_by_id")
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  createdBy Pengguna? @relation("AsetCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([jenis, fase])
+  @@map("aset")
+}
+
 

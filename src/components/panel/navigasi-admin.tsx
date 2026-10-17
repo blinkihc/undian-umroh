@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarRange, LayoutDashboard, ScrollText, Users, type LucideIcon } from 'lucide-react';
+import { CalendarRange, LayoutDashboard, Palette, ScrollText, Users, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { type ReactElement } from 'react';
@@ -15,6 +15,7 @@ type ItemMenu = { href: string; label: string; Ikon: LucideIcon; tepat?: boolean
 export const MENU_ADMIN: readonly ItemMenu[] = [
   { href: '/admin', label: 'Dasbor', Ikon: LayoutDashboard, tepat: true },
   { href: '/admin/periode', label: 'Periode', Ikon: CalendarRange },
+  { href: '/admin/tema', label: 'Tema Undian', Ikon: Palette },
   { href: '/admin/pengguna', label: 'Pengguna', Ikon: Users },
   { href: '/admin/audit', label: 'Log Audit', Ikon: ScrollText },
 ];

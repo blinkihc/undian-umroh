@@ -5,7 +5,7 @@ import { AppError } from '@/server/errors';
 import { bacaCsv, type IsiTabel } from './baca-csv';
 import { bacaXlsx } from './baca-xlsx';
 
-const PESAN_JENIS = 'File harus .csv atau .xlsx, maksimal 20 MB.';
+const PESAN_JENIS = 'File harus .csv atau .xlsx, maksimal 100 MB.';
 
 /**
  * MIME yang diterima per jenis (SECURITY §8). Peramban di Windows dengan Excel terpasang

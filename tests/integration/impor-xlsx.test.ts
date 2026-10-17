@@ -182,13 +182,13 @@ describe('encoding CSV', () => {
     );
   });
 
-  it('lebih dari 100.000 baris data ditolak', async () => {
+  it('lebih dari 500.000 baris data ditolak', async () => {
     const baris = '160999000000000501;;N;;;K;;;;;;';
-    const isi = [HEADER_IMPOR.join(';'), ...Array<string>(100_001).fill(baris)].join('\n');
+    const isi = [HEADER_IMPOR.join(';'), ...Array<string>(500_001).fill(baris)].join('\n');
 
     expect(await galat(await impor(isi, 'besar.csv', 'text/csv'))).toMatchObject({
       code: 'FILE_TIDAK_VALID',
-      message: 'File berisi lebih dari 100.000 baris data.',
+      message: 'File berisi lebih dari 500.000 baris data.',
     });
   });
 });

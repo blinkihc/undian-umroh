@@ -1,5 +1,5 @@
 import { type Metadata } from 'next';
-import { type ReactElement } from 'react';
+import { Suspense, type ReactElement } from 'react';
 
 import { LayarUndian } from '@/components/undian/layar-undian';
 import { NAMA_APLIKASI } from '@/config/brand';
@@ -13,5 +13,15 @@ export const metadata: Metadata = {
 export default async function HalamanUndian(): Promise<ReactElement> {
   await wajibPeran(['ADMIN', 'OPERATOR']);
 
-  return <LayarUndian />;
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-neutral-900 text-neutral-100">
+          <p className="text-lg font-semibold">Memuat Layar Undian...</p>
+        </div>
+      }
+    >
+      <LayarUndian />
+    </Suspense>
+  );
 }

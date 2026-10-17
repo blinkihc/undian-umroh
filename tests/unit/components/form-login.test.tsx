@@ -25,6 +25,22 @@ describe('FormLogin', () => {
     expect(screen.getByRole('button', { name: 'Masuk' })).toBeEnabled();
   });
 
+  it('dapat menampilkan dan menyembunyikan kata sandi saat tombol toggle diklik', async () => {
+    render(<FormLogin callbackUrl={null} />);
+
+    const fieldPassword = screen.getByLabelText('Kata sandi');
+    expect(fieldPassword).toHaveAttribute('type', 'password');
+
+    const tombolLihat = screen.getByRole('button', { name: 'Tampilkan kata sandi' });
+    await userEvent.click(tombolLihat);
+
+    expect(fieldPassword).toHaveAttribute('type', 'text');
+    expect(screen.getByRole('button', { name: 'Sembunyikan kata sandi' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Sembunyikan kata sandi' }));
+    expect(fieldPassword).toHaveAttribute('type', 'password');
+  });
+
   it('menolak isian kosong dengan pesan per field tanpa memanggil server', async () => {
     render(<FormLogin callbackUrl={null} />);
 

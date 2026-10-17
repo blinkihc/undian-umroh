@@ -16,6 +16,7 @@ export async function bersihkanPeriode(): Promise<void> {
     END $$;
   `);
 
+  await db.beritaAcara.deleteMany();
   await db.riwayatStatusPemenang.deleteMany();
   await db.slotHasil.deleteMany();
   await db.hasilUndian.deleteMany();

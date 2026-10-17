@@ -8,6 +8,8 @@ import { unggahForm } from '@/client/unggah';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 
+import { AnimasiProsesImpor } from './animasi-proses-impor';
+
 type UnggahImporProps = {
   periodeId: string;
   version: number;
@@ -19,7 +21,7 @@ type Tahap = 'diam' | 'konfirmasi' | 'mengunggah' | 'memproses';
 
 type Pesan = { jenis: 'info' | 'galat'; judul: string; isi?: string } | null;
 
-const UKURAN_MAKS = 20 * 1024 * 1024;
+const UKURAN_MAKS = 100 * 1024 * 1024;
 const angka = new Intl.NumberFormat('id-ID');
 
 type HasilImpor = { totalBaris: number; jumlahLolos: number; jumlahGugur: number };
@@ -56,7 +58,7 @@ export function UnggahImpor({ periodeId, version, adaData }: UnggahImporProps): 
       return null;
     }
     if (file.size > UKURAN_MAKS) {
-      setGalatFile('File harus .csv atau .xlsx, maksimal 20 MB.');
+      setGalatFile('File harus .csv atau .xlsx, maksimal 100 MB.');
       return null;
     }
     setGalatFile(null);
@@ -117,7 +119,7 @@ export function UnggahImpor({ periodeId, version, adaData }: UnggahImporProps): 
       )}
       <div>
         <label htmlFor={idInput} className="text-sm font-medium text-neutral-900">
-          File ekspor PBB (.csv pemisah titik koma, maksimal 20 MB)
+          File ekspor PBB (.csv pemisah titik koma atau .xlsx, maksimal 100 MB, hingga 500.000 baris)
         </label>
         <input
           ref={input}
@@ -143,22 +145,7 @@ export function UnggahImpor({ periodeId, version, adaData }: UnggahImporProps): 
           </p>
         )}
       </div>
-      {sibuk && (
-        <div className="space-y-2" aria-live="polite">
-          <p className="text-sm font-medium text-neutral-900">
-            {tahap === 'mengunggah'
-              ? `Mengunggah… ${Math.round(kemajuan * 100).toString()}%`
-              : 'Memproses baris dan menyimpan… Jangan tutup halaman ini.'}
-          </p>
-          {/* <progress> tanpa nilai = tak tentu (tahap memproses); tanpa style inline (CSP). */}
-          <progress
-            aria-label="Kemajuan impor"
-            max={100}
-            {...(tahap === 'mengunggah' && { value: Math.round(kemajuan * 100) })}
-            className="h-2 w-full overflow-hidden rounded-pill accent-primary-700"
-          />
-        </div>
-      )}
+      {sibuk && <AnimasiProsesImpor tahap={tahap} kemajuan={kemajuan} />}
       {tahap === 'konfirmasi' ? (
         <div
           className="flex flex-wrap items-center gap-3"

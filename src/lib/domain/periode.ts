@@ -144,6 +144,28 @@ export const BatalPeriodeSchema = z.strictObject({
 
 export type BatalPeriode = z.infer<typeof BatalPeriodeSchema>;
 
+export const BatalHasilSchema = z.strictObject({
+  version,
+  alasan: z
+    .string({ error: 'Alasan pembatalan wajib diisi.' })
+    .trim()
+    .min(5, 'Alasan pembatalan minimal 5 karakter.')
+    .max(500, 'Alasan pembatalan maksimal 500 karakter.'),
+});
+
+export type BatalHasil = z.infer<typeof BatalHasilSchema>;
+
+export const BukaKunciPeriodeSchema = z.strictObject({
+  version,
+  alasan: z
+    .string({ error: 'Alasan buka kunci wajib diisi.' })
+    .trim()
+    .min(5, 'Alasan buka kunci minimal 5 karakter.')
+    .max(500, 'Alasan buka kunci maksimal 500 karakter.'),
+});
+
+export type BukaKunciPeriode = z.infer<typeof BukaKunciPeriodeSchema>;
+
 export type AlasanPeriodeDitolak =
   | 'BATAS_HANYA_DRAF'
   | 'PERIODE_SUDAH_DIPUBLIKASI'
@@ -176,6 +198,26 @@ export function periksaUbahPeriode(
     return { ok: false, error: 'BATAS_HANYA_DRAF' };
   }
   return { ok: true, value: true };
+}
+
+/** Masukan `POST /api/periode/:id/publikasi`. */
+export const PublikasiPeriodeSchema = z.strictObject({
+  version,
+});
+
+export type PublikasiPeriode = z.infer<typeof PublikasiPeriodeSchema>;
+
+export function periksaPublikasiPeriode(status: StatusPeriode): Result<true, string> {
+  if (status === 'DIUNDI' || status === 'FINAL') {
+    return { ok: true, value: true };
+  }
+  if (status === 'DIPUBLIKASI') {
+    return { ok: false, error: 'Periode sudah dipublikasikan.' };
+  }
+  if (status === 'DIBATALKAN') {
+    return { ok: false, error: 'Periode sudah dibatalkan.' };
+  }
+  return { ok: false, error: 'Hasil undian belum diunggah atau periode belum diundi.' };
 }
 
 /** Aturan batal (DECISIONS 016): hanya Draf atau Terkunci; Dibatalkan bersifat final. */

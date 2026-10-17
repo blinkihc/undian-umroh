@@ -44,6 +44,16 @@ export const FilterPesertaSchema = z.strictObject({
 
 export type FilterPeserta = z.infer<typeof FilterPesertaSchema>;
 
+export const GugurkanPesertaSchema = z.strictObject({
+  alasan: z
+    .string({ error: 'Alasan gugur wajib diisi.' })
+    .trim()
+    .min(3, 'Alasan gugur minimal 3 karakter.')
+    .max(500, 'Alasan gugur maksimal 500 karakter.'),
+});
+
+export type GugurkanPeserta = z.infer<typeof GugurkanPesertaSchema>;
+
 /**
  * Menafsirkan kotak pencarian: angka (boleh bertitik, strip, atau spasi seperti NOP tampilan)
  * dicari sebagai awalan NOP; selain itu sebagai awalan nama tanpa memandang huruf besar-kecil.

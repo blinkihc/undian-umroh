@@ -160,7 +160,11 @@ export default async function HalamanPeserta({
             </div>
           ) : (
             <>
-              <TabelPeserta baris={halaman.items} />
+              <TabelPeserta
+                baris={halaman.items}
+                periodeId={periode.id}
+                bisaUbah={draf}
+              />
               <Paginasi
                 label="Halaman tabel peserta"
                 page={halaman.page}

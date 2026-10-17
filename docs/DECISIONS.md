@@ -787,3 +787,167 @@ Kontrak login dan error seragam dengan endpoint lain; akun nonaktif kehilangan a
 
 Tradeoff:
 Auth.js v5 beta dalam mode perawatan: pembaruan wajib dipantau dan dipin manual; bila dihentikan, sesi dapat diganti karena token hanya memuat `sub` dan `loginAt`. `npm audit` melaporkan temuan tinggi pada rantai CLI Prisma 7 (`mysql2` dan `deepmerge-ts` di dalam `prisma`, tidak dipakai saat runtime dan tidak memproses masukan luar); perbaikannya hanya ada di Prisma 8 rilis kandidat, jadi ditinjau lagi saat 8.x stabil. TRUNCATE yang dilakukan pemilik database dengan menonaktifkan trigger (`session_replication_role`) tetap di luar jangkauan trigger; dilindungi oleh akses database dan backup.
+
+---
+
+## Decision 024
+
+Title:
+Penyederhanaan kuota pemenang menjadi 1 pemenang utama per zona wilayah tanpa cadangan
+
+Date:
+2026-10-14
+
+Status:
+Accepted
+
+Context:
+Kebijakan bisnis penyelenggaraan undian umroh disesuaikan: setiap zona wilayah hanya menetapkan tepat 1 orang pemenang utama (W1-UTAMA dan W2-UTAMA) tanpa slot cadangan (menggantikan kuota lama 1 pemenang utama + 2 cadangan per wilayah).
+
+Decision:
+1. `SLOT_URUTAN` di `src/lib/package/kontrak.ts` disederhanakan dari 6 slot menjadi 2 slot resmi: `W1-UTAMA` (urutan 1) dan `W2-UTAMA` (urutan 2).
+2. Engine undian offline (`src/lib/draw/engine.ts`) dan pembangun berkas hasil (`src/lib/draw/hasil.ts`) disesuaikan agar dinamis mengacu pada `SLOT_URUTAN.length` tanpa magic number hardcoded 6.
+3. Batas minimum peserta per wilayah diturunkan menjadi `< 1` (hanya menolak bila pool wilayah kosong).
+4. Verifikasi hasil undian (`src/lib/draw/verifikasi.ts`) memvalidasi tepat 2 slot resmi; pemeriksaan `PESERTA_UNIK` diposisikan mendahului `WILAYAH_SESUAI` demi konsistensi deteksi duplikasi.
+5. Antarmuka publik (`/` dan `/pemenang`), panel admin, serta berkas PDF Berita Acara disesuaikan untuk menampilkan hanya pemenang utama terpilih tanpa referensi cadangan.
+
+Alternatives:
+- Mempertahankan skema 6 slot dengan cadangan opsional / kosong.
+
+Reason:
+Penyederhanaan alur panggung, kepastian pemenang di lokasi, dan konsistensi seluruh modul sistem.
+
+Consequences:
+
+Positive:
+Alur pengundian panggung jauh lebih cepat, tidak ada kompleksitas promosi cadangan di lapangan, data hasil undian lebih ringkas dan mudah diaudit.
+
+Tradeoff:
+Bila pemenang utama berhalangan atau digugurkan setelah verifikasi, penentuan pengganti membutuhkan keputusan panitia (status wilayah menjadi `PERLU_KEPUTUSAN`).
+
+---
+
+## Decision 025
+
+Title:
+Pembatalan hasil undian dan undi ulang mandiri tanpa unduh ulang paket
+
+Date:
+2026-10-15
+
+Status:
+Accepted
+
+Context:
+Pada situasi pengujian, gladi resik, atau pembatalan di panggung acara sebelum publikasi resmi, Admin memerlukan fleksibilitas untuk membatalkan hasil undian yang telah tersimpan di server dan melakukan pengundian ulang langsung di Layar Undian tanpa perlu mengunduh atau mengunggah ulang paket data zip dari awal.
+
+Decision:
+1. Endpoint `POST /api/periode/:id/hasil/batal`: Admin dapat membatalkan periode berstatus `DIUNDI` (selama belum `DIPUBLIKASI`). Menghapus baris `hasil_undian` dan `slot_hasil` menggunakan transaksi terkawal `session_replication_role = 'replica'`, mengembalikan status periode menjadi `TERKUNCI`, serta mencatat jejak audit `HASIL_BATAL`.
+2. Antarmuka Admin (`UnggahHasil`): Menambahkan tombol dan formulir konfirmasi pembatalan hasil berstatus `DIUNDI` dengan input alasan wajib.
+3. Antarmuka Layar Undian (`LayarUndian`): Menambahkan fungsi reset state di IndexedDB (`resetStateUndianDb()`) dan tombol "Ulangi Pengundian" di bilah kontrol serta tampilan `RingkasanAkhir` agar operator/admin dapat mengulang undian seketika tanpa kehilangan cache paket peserta.
+4. Auto-fetch Paket Online: Layar Undian mendukung parameter query URL `?periodeId=<id>` yang memungkinkan pemuatan paket snapshot otomatis dari server ke IndexedDB tanpa proses manual unduh/unggah zip.
+
+Alternatives:
+- Mengharuskan penghapusan periode atau re-impor data secara keseluruhan.
+
+Reason:
+Efisiensi operasional tinggi saat pengujian lokal dan ketenangan operator saat gladi resik tanpa merusak integritas audit sistem.
+
+Consequences:
+
+Positive:
+Alur pengujian dan pemulihan pengundian sangat cepat dan fleksibel, tidak membebani jaringan atau penyimpanan lokal dengan file zip berulang kali.
+
+Tradeoff:
+Pembatalan hasil hanya diizinkan untuk peran Admin dan hanya berlaku pada status `DIUNDI` sebelum `DIPUBLIKASI`.
+
+---
+
+## Decision 026
+
+Title:
+Pembukaan kunci data peserta dan diskualifikasi peserta lolos secara manual oleh Admin
+
+Date:
+2026-10-15
+
+Status:
+Accepted
+
+Context:
+Setelah data peserta dikunci (status `TERKUNCI`), penyelenggara mungkin menemukan kesalahan administrasi pada data peserta atau pemetaan wilayah sebelum acara undian berlangsung. Selain itu, pada tahap peninjauan data peserta (status `DRAF`), Admin membutuhkan wewenang untuk menggugurkan peserta tertentu yang lolos verifikasi sistem otomatis (misalnya karena hasil verifikasi lapangan menunjukkan bahwa yang bersangkutan adalah pejabat/pegawai yang tidak berhak ikut, atau objek pajak bermasalah) dengan alasan yang dapat dipertanggungjawabkan.
+
+Decision:
+1. Pembukaan Kunci Data (`POST /api/periode/:id/kunci/buka`):
+   - Admin dapat membuka kunci periode berstatus `TERKUNCI` kembali ke `DRAF` selama periode tersebut belum pernah diundi (tidak ada `hasil_undian`).
+   - Transaksi database menghapus relasi paket unduhan (`paket_unduhan`), snapshot peserta (`snapshot_peserta`), dan snapshot (`snapshot`) menggunakan bypass terkontrol `SET LOCAL session_replication_role = 'replica'`.
+   - Berkas fisik snapshot kanonik di storage lokal dihapus.
+   - Status periode kembali ke `DRAF`, versi dinaikkan, dan audit `PERIODE_BUKA_KUNCI` dicatat bersama alasan.
+2. Diskualifikasi Peserta Manual (`POST /api/periode/:id/peserta/:pesertaId/gugur`):
+   - Admin dapat menggugurkan peserta yang berstatus `eligible === true` pada periode berstatus `DRAF`.
+   - Mengubah `eligible` menjadi `false`, menyimpan alasan ke kolom array `alasan` dengan format `DISKUALIFIKASI_MANUAL: <alasan>`, memperbarui agregat `jumlahLolos` (-1) dan `jumlahGugur` (+1) pada data impor aktif, dan mencatat audit `PESERTA_GUGUR`.
+   - Antarmuka tabel peserta (`TabelPeserta`) menyediakan kolom Aksi dengan tombol "Gugurkan" dan dialog modal konfirmasi alasan diskualifikasi.
+
+Alternatives:
+- Mengharuskan pembuatan periode baru sejak awal ketika data perlu diubah.
+- Mengizinkan pengubahan data saat status masih `TERKUNCI` (ditolak karena melanggar jaminan snapshot immutable).
+
+Reason:
+Menjaga fleksibilitas operasional Bapenda tanpa mengorbankan integritas audit, kepastian hukum, maupun ketatnya aturan keamanan snapshot sebelum acara undian.
+
+Consequences:
+
+Positive:
+Admin dapat mengoreksi peserta yang tidak berhak dan memperbaiki data terkunci tanpa harus mengulang proses administrasi periode dari nol.
+
+Tradeoff:
+Membuka kunci data menghapus paket unduhan dan snapshot, sehingga panitia wajib melakukan penguncian ulang dan mengunduh paket undian baru sebelum pelaksanaan undian di panggung.
+
+---
+
+## Decision 027
+
+Title:
+Manajemen musik latar (BGM) terintegrasi IndexedDB dan tampilan layar undian fullscreen murni tanpa header web
+
+Date:
+2026-10-16
+
+Status:
+Accepted
+
+Context:
+Layar undian acara dirancang untuk laptop panggung dan proyektor acara tanpa ketergantungan koneksi internet. Saat ditampilkan di proyektor panggung, tampilan sebelumnya masih dibungkus oleh kerangka panel operator umum (`KerangkaPanel` dengan navbar web dan padding batas `max-w-[1280px]`), sehingga saat mode fullscreen diaktifkan, layar tidak murni memenuhi viewport. Selain itu, penyelenggara membutuhkan judul acara kustom di atas tema undian yang dapat dikonfigurasi fleksibel, serta pemutar musik latar (BGM) dengan slot standby dan drumroll/tegang yang dapat dikelola di Pengaturan dan terintegrasi mulus dengan audio ducking saat pengumuman pemenang.
+
+Decision:
+1. Pemisahan Halaman Panel vs Layar Undian:
+   - Route group `src/app/operator/(panel)/layout.tsx` memisahkan antarmuka panel operator (Dasbor dan Unggah Hasil) yang memakai `KerangkaPanel`.
+   - Rute `/operator/undian` langsung merender `LayarUndian` tanpa header web dan tanpa batas kontainer, menghasilkan tampilan 100% full screen / viewport.
+   - Panggilan fullscreen memakai `wadahRef.current?.requestFullscreen()` pada root container layar undian disertai sinkronisasi `fullscreenchange` otomatis.
+2. Judul di Atas Tema Undian:
+   - Menambahkan properti `ThemeConfig.teks.judulAtas` (maks. 120 karakter) dengan nilai bawaan `'GEBYAR UNDIAN UMROH PBB-P2'`.
+   - Input teks judul tersedia di menu Pengaturan Tema Admin (`/admin/tema`) dan terhubung langsung ke kanvas pratinjau 16:9 serta layar undian panggung.
+3. Arsitektur Musik Latar (BGM):
+   - Berkas biner audio (`Blob`) dan preferensi disimpan pada basis data IndexedDB peramban (`undian_umroh_bgm`) agar tetap persisten dan berfungsi penuh secara offline tanpa konsumsi kuota server.
+   - Dua slot audio khusus disediakan: (1) "Musik Latar Standby" untuk fase menunggu, (2) "Musik Tegang / Drum Roll" untuk fase mengacak saat tombol Putar ditekan.
+   - Playlist audio tambahan mendukung unggah multi-berkas (`.mp3`, `.wav`, `.ogg`), durasi terhitung otomatis, tombol uji putar, dan hapus berkas.
+   - Komponen melayang `FloatingAudioPlayer` di pojok kanan bawah dengan efek glassmorphism terukur, mode minimize waveform/equalizer berdenyut saat lagu diputar, dan kontrol playlist/volume/progress bar.
+   - Logika Audio Ducking: Saat status beralih ke `PEMENANG`, volume musik latar diturunkan secara bertahap (fade-out hingga 15%) agar suara pengumuman pemenang terdengar megah dan jelas, lalu dipulihkan bertahap (fade-in) saat kembali ke fase standby/menunggu.
+
+Alternatives:
+- Mengunggah audio BGM ke server PostgreSQL (ditolak karena membebani database dan membatasi ukuran file audio saat offline).
+- Menggunakan localStorage (ditolak karena batas kuota 5 MB terlalu kecil untuk berkas MP3).
+
+Reason:
+Menghadirkan pengalaman panggung undian offline yang imersif, profesional, dan bebas gangguan antarmuka web, dengan fleksibilitas audio panggung yang tinggi bagi operator.
+
+Consequences:
+
+Positive:
+Layar undian benar-benar penuh di proyektor panggung, audio tersimpan aman di IndexedDB tanpa server, dan audio ducking otomatis menjamin pengumuman pemenang terdengar dramatis dan jernih.
+
+Tradeoff:
+Penyimpanan IndexedDB bersifat lokal per perangkat laptop operator, sehingga file audio yang diunggah diatur pada laptop yang akan digunakan untuk acara.
+
+
+

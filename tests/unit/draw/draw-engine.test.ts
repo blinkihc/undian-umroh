@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  batalkanPemenangSlot,
+  batalkanPutaran,
   buatStateAwal,
   lanjutSlotBerikutnya,
   mulaiSlot,
@@ -95,9 +97,9 @@ describe('secureRandomInt', () => {
 });
 
 describe('pilihPemenang', () => {
-  it('menolak jika pool wilayah kurang dari 3 peserta', () => {
-    const peserta = [buatPeserta(1, 'W1'), buatPeserta(2, 'W1')];
-    expect(() => pilihPemenang(peserta, new Set())).toThrow(/kurang dari 3 peserta/);
+  it('menolak jika pool wilayah kurang dari 1 peserta', () => {
+    const peserta: PesertaUndian[] = [];
+    expect(() => pilihPemenang(peserta, new Set())).toThrow(/Pool wilayah kosong/);
   });
 
   it('tidak pernah memilih peserta yang nomor urutnya sudah ada di pemenangTerpilihUrut', () => {
@@ -107,7 +109,7 @@ describe('pilihPemenang', () => {
     expect(pemenang.urut).toBe(3);
   });
 
-  it('10.000 simulasi undian tanpa pemenang ganda dan wilayah selalu sesuai', () => {
+  it('1.000 simulasi undian tanpa pemenang ganda dan wilayah selalu sesuai', () => {
     const poolW1 = Array.from({ length: 20 }, (_, i) => buatPeserta(i + 1, 'W1'));
     const poolW2 = Array.from({ length: 20 }, (_, i) => buatPeserta(i + 21, 'W2'));
 
@@ -120,23 +122,23 @@ describe('pilihPemenang', () => {
         expect(terpilih.has(pemenang.urut)).toBe(false);
         terpilih.add(pemenang.urut);
       }
-      expect(terpilih.size).toBe(6);
+      expect(terpilih.size).toBe(SLOT_URUTAN.length);
     }
   });
 });
 
 describe('State machine undian dan hasil', () => {
-  it('menjalankan 6 slot berurutan dan menghasilkan file hasil deterministik', async () => {
+  it('menjalankan seluruh slot berurutan dan menghasilkan file hasil deterministik', async () => {
     let state = buatStateAwal();
     expect(state.fase).toBe('MENUNGGU');
     expect(state.slotAktifIndex).toBe(0);
 
-    const poolW1 = [buatPeserta(1, 'W1'), buatPeserta(2, 'W1'), buatPeserta(3, 'W1')];
-    const poolW2 = [buatPeserta(4, 'W2'), buatPeserta(5, 'W2'), buatPeserta(6, 'W2')];
+    const poolW1 = [buatPeserta(1, 'W1'), buatPeserta(2, 'W1')];
+    const poolW2 = [buatPeserta(3, 'W2'), buatPeserta(4, 'W2')];
 
     const waktuMulai = '2026-10-20T09:00:00+07:00';
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < SLOT_URUTAN.length; i++) {
       state = mulaiSlot(state, waktuMulai);
       expect(state.fase).toBe('MENGACAK');
       const slot = SLOT_URUTAN[i];
@@ -153,7 +155,7 @@ describe('State machine undian dan hasil', () => {
       expect(state.slotSelesai.length).toBe(i + 1);
 
       state = lanjutSlotBerikutnya(state);
-      if (i < 5) {
+      if (i < SLOT_URUTAN.length - 1) {
         expect(state.fase).toBe('MENUNGGU');
         expect(state.slotAktifIndex).toBe(i + 1);
       } else {
@@ -170,11 +172,43 @@ describe('State machine undian dan hasil', () => {
     });
 
     expect(fileHasil.versiFormat).toBe(1);
-    expect(fileHasil.slot.length).toBe(6);
+    expect(fileHasil.slot.length).toBe(SLOT_URUTAN.length);
     expect(fileHasil.hasilHash).toHaveLength(64);
 
     // Hash hasil deterministik
     const hashUlang = await hitungHasilHash(fileHasil);
     expect(hashUlang).toBe(fileHasil.hasilHash);
+  });
+
+  it('dapat membatalkan putaran saat fase MENGACAK dan kembali ke MENUNGGU tanpa memilih pemenang', () => {
+    let state = buatStateAwal();
+    expect(state.fase).toBe('MENUNGGU');
+
+    state = mulaiSlot(state, '2026-10-20T09:00:00+07:00');
+    expect(state.fase).toBe('MENGACAK');
+
+    // Operator membatalkan karena salah pencet
+    state = batalkanPutaran(state);
+    expect(state.fase).toBe('MENUNGGU');
+    expect(state.slotAktifIndex).toBe(0);
+    expect(state.slotSelesai).toHaveLength(0);
+    expect(state.dimulaiAt).toBeNull();
+  });
+
+  it('dapat membatalkan pemenang slot pada fase PEMENANG dan mengembalikan ke MENUNGGU pada slot yang sama', () => {
+    let state = buatStateAwal();
+    state = mulaiSlot(state, '2026-10-20T09:00:00+07:00');
+
+    const pemenang = buatPeserta(1, 'W1');
+    state = simpanPemenangSlot(state, pemenang, '2026-10-20T09:01:00+07:00');
+    expect(state.fase).toBe('PEMENANG');
+    expect(state.slotSelesai).toHaveLength(1);
+
+    // Operator membatalkan pemenang slot karena salah pencet Berhenti sebelum waktunya
+    state = batalkanPemenangSlot(state);
+    expect(state.fase).toBe('MENUNGGU');
+    expect(state.slotAktifIndex).toBe(0);
+    expect(state.slotSelesai).toHaveLength(0);
+    expect(state.selesaiAt).toBeNull();
   });
 });

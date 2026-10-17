@@ -13,12 +13,13 @@ import {
   type ManifestData,
   type MetaData,
 } from '@/lib/package/kontrak';
-import { TEMA_DEFAULT } from '@/lib/package/theme';
+import { TEMA_DEFAULT, ThemeConfigSchema, type ThemeConfig } from '@/lib/package/theme';
 import { audit } from '@/server/audit';
 import { type PenggunaSesi } from '@/server/auth/sesi';
 import { getDb } from '@/server/db';
 import { AppError } from '@/server/errors';
 import { type KonteksRequest } from '@/server/request';
+import { pastikanTemaDanAsetBawaan } from '@/server/services/tema';
 
 export type InfoPaket = {
   status: string;
@@ -31,7 +32,9 @@ export type InfoPaket = {
     jumlahW1: number;
     jumlahW2: number;
   } | null;
+  temaId: string | null;
   temaAktif: string;
+  daftarTema: { id: string; nama: string; bawaan: boolean }[];
   perkiraanUkuran: string;
   riwayatUnduhan: { at: string; oleh: string; paketSha256: string }[];
 };
@@ -46,32 +49,52 @@ export type HasilUnduhPaket = {
  * Informasi paket undian untuk tampilan Tab Paket Undian (API.md §3, §4).
  */
 export async function ambilInfoPaket(periodeId: string): Promise<InfoPaket> {
-  const periode = await getDb().periode.findUnique({
-    where: { id: periodeId },
-    select: {
-      id: true,
-      slug: true,
-      judul: true,
-      status: true,
-      snapshot: {
-        select: {
-          hash: true,
-          lockedAt: true,
-          jumlahW1: true,
-          jumlahW2: true,
+  const db = getDb();
+  const hitungTema = await db.tema.count();
+  if (hitungTema < 4) {
+    await pastikanTemaDanAsetBawaan(db);
+  }
+
+  const [periode, daftarTema] = await Promise.all([
+    db.periode.findUnique({
+      where: { id: periodeId },
+      select: {
+        id: true,
+        slug: true,
+        judul: true,
+        status: true,
+        temaId: true,
+        tema: {
+          select: { nama: true },
+        },
+        snapshot: {
+          select: {
+            hash: true,
+            lockedAt: true,
+            jumlahW1: true,
+            jumlahW2: true,
+          },
+        },
+        paketUnduhan: {
+          select: {
+            createdAt: true,
+            paketSha256: true,
+            unduhBy: { select: { nama: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
         },
       },
-      paketUnduhan: {
-        select: {
-          createdAt: true,
-          paketSha256: true,
-          unduhBy: { select: { nama: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
+    }),
+    db.tema.findMany({
+      select: {
+        id: true,
+        nama: true,
+        bawaan: true,
       },
-    },
-  });
+      orderBy: [{ bawaan: 'desc' }, { createdAt: 'asc' }],
+    }),
+  ]);
 
   if (periode === null) {
     throw new AppError('TIDAK_DITEMUKAN', 404, 'Periode tidak ditemukan.');
@@ -93,7 +116,9 @@ export async function ambilInfoPaket(periodeId: string): Promise<InfoPaket> {
             jumlahW2: periode.snapshot.jumlahW2,
           }
         : null,
-    temaAktif: 'Default (Slot Mesin Bawaan)',
+    temaId: periode.temaId,
+    temaAktif: periode.tema?.nama ?? daftarTema[0]?.nama ?? 'Default (Slot Mesin Bawaan)',
+    daftarTema,
     perkiraanUkuran:
       periode.snapshot !== null
         ? `±${Math.max(1, Math.round(((periode.snapshot.jumlahW1 + periode.snapshot.jumlahW2) * 60) / 1024 / 1024)).toString()} MB`
@@ -107,7 +132,7 @@ export async function ambilInfoPaket(periodeId: string): Promise<InfoPaket> {
 }
 
 /**
- * Menyusun dan mengalirkan file paket .zip untuk periode terkunci (API.md §4.2, Tiket 11).
+ * Menyusun dan mengalirkan file paket .zip untuk periode terkunci (API.md §4.2, Tiket 11 & Tiket 23).
  */
 export async function buatPaketZip(masukan: {
   aktor: PenggunaSesi;
@@ -115,8 +140,9 @@ export async function buatPaketZip(masukan: {
   konteks: KonteksRequest;
 }): Promise<HasilUnduhPaket> {
   const { aktor, periodeId, konteks } = masukan;
+  const db = getDb();
 
-  const periode = await getDb().periode.findUnique({
+  const periode = await db.periode.findUnique({
     where: { id: periodeId },
     select: {
       id: true,
@@ -125,6 +151,12 @@ export async function buatPaketZip(masukan: {
       status: true,
       tanggalAcara: true,
       lokasiAcara: true,
+      tema: {
+        select: {
+          config: true,
+          nama: true,
+        },
+      },
       snapshot: {
         select: {
           hash: true,
@@ -176,8 +208,28 @@ export async function buatPaketZip(masukan: {
     );
   }
 
-  // Siapkan tema default kanonik
-  const temaKanonicJson = canonicalStringify(TEMA_DEFAULT);
+  // Siapkan tema: gunakan tema periode jika ada, atau tema bawaan aktif di database, atau fallback ke TEMA_DEFAULT
+  let temaConfig: ThemeConfig = TEMA_DEFAULT;
+  if (periode.tema?.config) {
+    try {
+      temaConfig = ThemeConfigSchema.parse(periode.tema.config);
+    } catch {
+      temaConfig = TEMA_DEFAULT;
+    }
+  } else {
+    const temaPertama = await db.tema.findFirst({
+      orderBy: [{ bawaan: 'desc' }, { createdAt: 'asc' }],
+    });
+    if (temaPertama?.config) {
+      try {
+        temaConfig = ThemeConfigSchema.parse(temaPertama.config);
+      } catch {
+        temaConfig = TEMA_DEFAULT;
+      }
+    }
+  }
+
+  const temaKanonicJson = canonicalStringify(temaConfig);
   const temaConfigHash = await sha256Hex(temaKanonicJson);
 
   // Siapkan meta.json kanonik
@@ -206,25 +258,71 @@ export async function buatPaketZip(masukan: {
   const metaKanonicJson = canonicalStringify(metaData);
   const metaHash = await sha256Hex(metaKanonicJson);
 
-  // Siapkan manifest.json kanonik
-  const manifestData: ManifestData = {
-    versiFormat: 1,
-    file: {
-      'meta.json': metaHash,
-      'snapshot.json': periode.snapshot.hash,
-      'tema/theme.json': temaConfigHash,
-    },
+  // Kumpulkan semua aset yang dirujuk oleh tema
+  const daftarAsetId: string[] = [];
+  if (temaConfig.tampilan.latarAsetId) daftarAsetId.push(temaConfig.tampilan.latarAsetId);
+  if (temaConfig.audio.menunggu.asetId) daftarAsetId.push(temaConfig.audio.menunggu.asetId);
+  if (temaConfig.audio.mengacak.asetId) daftarAsetId.push(temaConfig.audio.mengacak.asetId);
+  if (temaConfig.audio.pemenang.asetId) daftarAsetId.push(temaConfig.audio.pemenang.asetId);
+
+  const asetDatabase =
+    daftarAsetId.length > 0
+      ? await db.aset.findMany({
+          where: { id: { in: daftarAsetId } },
+          select: { id: true, sha256: true, mime: true },
+        })
+      : [];
+
+  const manifestFiles: Record<string, string> = {
+    'meta.json': metaHash,
+    'snapshot.json': periode.snapshot.hash,
+    'tema/theme.json': temaConfigHash,
   };
 
-  const manifestKanonicJson = canonicalStringify(manifestData);
-
-  // Kompresi seluruh file ke ZIP
-  const zipBuffer = zipSync({
-    'manifest.json': strToU8(manifestKanonicJson),
+  const berkasZip: Record<string, Uint8Array> = {
+    'manifest.json': new Uint8Array(), // akan diisi setelah manifest lengkap
     'meta.json': strToU8(metaKanonicJson),
     'snapshot.json': strToU8(snapshotIsi),
     'tema/theme.json': strToU8(temaKanonicJson),
-  });
+  };
+
+  // Muat dan tambahkan berkas aset ke paket zip
+  for (const aset of asetDatabase) {
+    const ext = aset.mime.includes('png')
+      ? 'png'
+      : aset.mime.includes('jpeg')
+        ? 'jpg'
+        : aset.mime.includes('webp')
+          ? 'webp'
+          : aset.mime.includes('ogg')
+            ? 'ogg'
+            : aset.mime.includes('wav')
+              ? 'wav'
+              : 'mp3';
+
+    const namaPathRelatif = `tema/aset/${aset.sha256}.${ext}`;
+    const filePathFisik = path.join(storageDir, 'aset', `${aset.sha256}.${ext}`);
+
+    try {
+      const buffer = await fs.readFile(filePathFisik);
+      berkasZip[namaPathRelatif] = new Uint8Array(buffer);
+      manifestFiles[namaPathRelatif] = aset.sha256;
+    } catch {
+      // Jika berkas aset belum ada di disk (misal di lingkungan uji), abaikan agar undian tetap jalan
+    }
+  }
+
+  // Siapkan manifest.json kanonik
+  const manifestData: ManifestData = {
+    versiFormat: 1,
+    file: manifestFiles,
+  };
+
+  const manifestKanonicJson = canonicalStringify(manifestData);
+  berkasZip['manifest.json'] = strToU8(manifestKanonicJson);
+
+  // Kompresi seluruh file ke ZIP
+  const zipBuffer = zipSync(berkasZip);
 
   const batasMaksByte = 25 * 1024 * 1024;
   if (zipBuffer.byteLength > batasMaksByte) {
@@ -239,7 +337,7 @@ export async function buatPaketZip(masukan: {
   const namaFile = `paket-undian-${periode.slug}-${periode.snapshot.hash.slice(0, 8)}.zip`;
 
   // Catat riwayat unduhan
-  await getDb().paketUnduhan.create({
+  await db.paketUnduhan.create({
     data: {
       periodeId: periode.id,
       snapshotHash: periode.snapshot.hash,
@@ -249,7 +347,7 @@ export async function buatPaketZip(masukan: {
     },
   });
 
-  await audit(getDb(), {
+  await audit(db, {
     aksi: 'PAKET_UNDUH',
     aktor,
     targetTipe: 'periode',

@@ -34,7 +34,7 @@ export type KolomImpor = (typeof HEADER_IMPOR)[number];
 export type PetaKolom = Readonly<Record<KolomImpor, number>>;
 
 /** Batas jumlah baris data per impor (ERROR_HANDLING, kesalahan impor). */
-export const BARIS_IMPOR_MAKS = 100_000;
+export const BARIS_IMPOR_MAKS = 500_000;
 
 function kunciHeader(nama: string): string {
   return nama.trim().toLowerCase();

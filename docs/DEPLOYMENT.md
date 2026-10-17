@@ -1,6 +1,6 @@
 # Deployment
 
-> Status: Draf v0.1. Hosting di VPS Pemkab dengan Docker Compose (Decision 013). Variabel lingkungan di `ENVIRONMENT.md`; log dan alert di `OBSERVABILITY.md`.
+> Status: Draf v0.1. Hosting di VPS Pemkab dengan Docker Compose (Decision 013) atau Easypanel (lihat [DEPLOYMENT_EASYPANEL.md](DEPLOYMENT_EASYPANEL.md)). Variabel lingkungan di `ENVIRONMENT.md`; log dan alert di `OBSERVABILITY.md`.
 
 ## Environments
 

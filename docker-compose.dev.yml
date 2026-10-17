@@ -1,0 +1,23 @@
+# PostgreSQL 16 untuk development lokal (Port 5432, data persisten).
+name: undian-umroh-dev
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: undian
+      POSTGRES_PASSWORD: undian
+      POSTGRES_DB: undian
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - undian-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U undian -d undian']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+volumes:
+  undian-dev-data:

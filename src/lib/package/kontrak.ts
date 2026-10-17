@@ -3,17 +3,18 @@ import { z } from 'zod';
 import { ThemeConfigSchema } from './theme';
 import { SnapshotSchema } from './snapshot';
 
-/** Daftar enam slot baku berurutan (API.md §4.3, PRD §6.0). */
+/** Daftar slot baku berurutan: 1 pemenang utama per zona wilayah tanpa cadangan. */
 export const SLOT_URUTAN = [
   { urutan: 1, kode: 'W1-UTAMA', wilayah: 'W1', label: 'Pemenang Utama' },
-  { urutan: 2, kode: 'W1-C1', wilayah: 'W1', label: 'Cadangan 1' },
-  { urutan: 3, kode: 'W1-C2', wilayah: 'W1', label: 'Cadangan 2' },
-  { urutan: 4, kode: 'W2-UTAMA', wilayah: 'W2', label: 'Pemenang Utama' },
-  { urutan: 5, kode: 'W2-C1', wilayah: 'W2', label: 'Cadangan 1' },
-  { urutan: 6, kode: 'W2-C2', wilayah: 'W2', label: 'Cadangan 2' },
+  { urutan: 2, kode: 'W2-UTAMA', wilayah: 'W2', label: 'Pemenang Utama' },
 ] as const;
 
-export type KodeSlotPaket = (typeof SLOT_URUTAN)[number]['kode'];
+export type KodeSlotPaket =
+  | (typeof SLOT_URUTAN)[number]['kode']
+  | 'W1-C1'
+  | 'W1-C2'
+  | 'W2-C1'
+  | 'W2-C2';
 
 /** Skema manifest.json di dalam paket zip (API.md §4.2). */
 export const ManifestSchema = z
@@ -35,8 +36,8 @@ export const MetaWilayahSchema = z
 
 export const MetaSlotSchema = z
   .object({
-    urutan: z.number().int().min(1).max(6),
-    kode: z.enum(['W1-UTAMA', 'W1-C1', 'W1-C2', 'W2-UTAMA', 'W2-C1', 'W2-C2']),
+    urutan: z.number().int().min(1).max(SLOT_URUTAN.length),
+    kode: z.enum(['W1-UTAMA', 'W2-UTAMA', 'W1-C1', 'W1-C2', 'W2-C1', 'W2-C2']),
     wilayah: z.enum(['W1', 'W2']),
     label: z.string().min(1),
   })
@@ -60,7 +61,7 @@ export const MetaSchema = z
     dibuatAt: z.string().min(1),
     periode: MetaPeriodeSchema,
     wilayah: z.array(MetaWilayahSchema).length(2),
-    slot: z.array(MetaSlotSchema).length(6),
+    slot: z.array(MetaSlotSchema).min(1).max(6),
     snapshotHash: z.string().regex(/^[0-9a-f]{64}$/),
     temaConfigHash: z.string().regex(/^[0-9a-f]{64}$/),
   })

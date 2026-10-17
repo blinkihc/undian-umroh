@@ -1,6 +1,7 @@
-import 'server-only';
-
-import { formatNop } from '@/lib/domain/nop';
+import { type StatusPemenang } from '@/generated/prisma/client';
+import { formatNop, maskNop } from '@/lib/domain/nop';
+import { isoWib } from '@/lib/domain/waktu';
+import { type KodeSlotPaket } from '@/lib/package/kontrak';
 import {
   GugurInputSchema,
   hitungKenaikanCadangan,
@@ -462,3 +463,193 @@ export async function lihatNikPemenang(
     nik: nikHasil,
   };
 }
+
+export type SlotPemenangPublik = {
+  kode: KodeSlotPaket;
+  status: StatusPemenang;
+  penerimaAktif: boolean;
+  diperbaruiAt: string | null;
+  peserta: {
+    nopMasked: string;
+    nikMasked: string;
+    nama: string;
+    alamatWp: string;
+    alamatOp: string;
+    kecamatan: string;
+    kelurahan: string;
+    lunas: Record<string, string>;
+  };
+};
+
+export type WilayahPemenangPublik = {
+  kode: string;
+  nama: string;
+  status: StatusWilayah;
+  slot: SlotPemenangPublik[];
+};
+
+export type PemenangPublikRespons =
+  | {
+      status: 'BELUM_DIUMUMKAN';
+      pesan: string;
+      periode?: { judul: string };
+    }
+  | {
+      status: 'TIDAK_ADA_PERIODE';
+      pesan: string;
+    }
+  | {
+      status: 'DIPUBLIKASI';
+      periode: {
+        id: string;
+        judul: string;
+        tanggalAcara: string | null;
+        lokasiAcara: string | null;
+        publishedAt: string;
+        updatedAt: string;
+      };
+      integritas: {
+        snapshotHash: string | null;
+        hasilHash: string | null;
+        pesertaPerWilayah: Array<{
+          kode: string;
+          nama: string;
+          jumlahPeserta: number;
+        }>;
+        totalPeserta: number;
+      };
+      wilayah: WilayahPemenangPublik[];
+    };
+
+/**
+ * Mengambil data publik pemenang undian (PRD F10, API.md GET /api/publik/pemenang).
+ * Menyembunyikan alasan gugur, menyamarkan NIK dan NOP, serta menampilkan hash integritas.
+ */
+export async function ambilPemenangPublik(): Promise<PemenangPublikRespons> {
+  const db = getDb();
+
+  // Cari periode yang dipublikasikan (terbaru)
+  const periodePublik = await db.periode.findFirst({
+    where: { status: 'DIPUBLIKASI' },
+    orderBy: { publishedAt: 'desc' },
+    include: {
+      wilayah: {
+        orderBy: { kode: 'asc' },
+      },
+      snapshot: true,
+      hasilUndian: true,
+      slotHasil: {
+        include: {
+          peserta: true,
+          riwayatStatus: {
+            orderBy: { at: 'desc' },
+            take: 1,
+          },
+        },
+        orderBy: { urutan: 'asc' },
+      },
+    },
+  });
+
+  if (!periodePublik) {
+    // Periksa apakah ada periode aktif
+    const periodeAktif = await db.periode.findFirst({
+      where: { status: { notIn: ['DIPUBLIKASI', 'DIBATALKAN'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (periodeAktif) {
+      return {
+        status: 'BELUM_DIUMUMKAN',
+        pesan: 'Hasil undian belum diumumkan. Pantau halaman ini setelah acara.',
+        periode: { judul: periodeAktif.judul },
+      };
+    }
+
+    return {
+      status: 'TIDAK_ADA_PERIODE',
+      pesan: 'Belum ada undian yang berjalan.',
+    };
+  }
+
+  type SlotHasilTunggal = (typeof periodePublik)['slotHasil'][number];
+
+  function petakanSlotPublik(s: SlotHasilTunggal): SlotPemenangPublik {
+    const riwayatTerbaru = s.riwayatStatus[0];
+    return {
+      kode: slotDbKePaket(s.slot),
+      status: s.status,
+      penerimaAktif: s.penerimaAktif,
+      diperbaruiAt: riwayatTerbaru ? isoWib(riwayatTerbaru.at) : null,
+      peserta: {
+        nopMasked: maskNop(s.peserta.nop),
+        nikMasked: s.peserta.nikMasked,
+        nama: s.peserta.nama,
+        alamatWp: s.peserta.alamatWp,
+        alamatOp: s.peserta.alamatOp,
+        kecamatan: s.peserta.kecamatan,
+        kelurahan: s.peserta.kelurahan,
+        lunas: s.peserta.lunasRaw as Record<string, string>,
+      },
+    };
+  }
+
+  const slotW1 = periodePublik.slotHasil.filter((s) => s.wilayah === 'W1').map(petakanSlotPublik);
+  const slotW2 = periodePublik.slotHasil.filter((s) => s.wilayah === 'W2').map(petakanSlotPublik);
+
+  const statusW1 = hitungStatusWilayah(
+    slotW1.map((s) => ({ kode: s.kode, status: s.status, penerimaAktif: s.penerimaAktif })),
+  );
+  const statusW2 = hitungStatusWilayah(
+    slotW2.map((s) => ({ kode: s.kode, status: s.status, penerimaAktif: s.penerimaAktif })),
+  );
+
+  const w1Record = periodePublik.wilayah.find((w) => w.kode === 'W1');
+  const w2Record = periodePublik.wilayah.find((w) => w.kode === 'W2');
+
+  const jW1 = periodePublik.snapshot?.jumlahW1 ?? 0;
+  const jW2 = periodePublik.snapshot?.jumlahW2 ?? 0;
+
+  const rekapWilayah = periodePublik.wilayah.map((w) => ({
+    kode: w.kode,
+    nama: w.nama,
+    jumlahPeserta: w.kode === 'W1' ? jW1 : jW2,
+  }));
+
+  const totalPeserta = rekapWilayah.reduce((a: number, b: { jumlahPeserta: number }) => a + b.jumlahPeserta, 0);
+
+  return {
+    status: 'DIPUBLIKASI',
+    periode: {
+      id: periodePublik.id,
+      judul: periodePublik.judul,
+      tanggalAcara: periodePublik.tanggalAcara
+        ? periodePublik.tanggalAcara.toISOString().slice(0, 10)
+        : null,
+      lokasiAcara: periodePublik.lokasiAcara,
+      publishedAt: isoWib(periodePublik.publishedAt ?? new Date()),
+      updatedAt: isoWib(periodePublik.updatedAt),
+    },
+    integritas: {
+      snapshotHash: periodePublik.snapshot?.hash ?? null,
+      hasilHash: periodePublik.hasilUndian?.hasilHash ?? null,
+      pesertaPerWilayah: rekapWilayah,
+      totalPeserta,
+    },
+    wilayah: [
+      {
+        kode: 'W1',
+        nama: w1Record?.nama ?? 'Wilayah 1',
+        status: statusW1,
+        slot: slotW1,
+      },
+      {
+        kode: 'W2',
+        nama: w2Record?.nama ?? 'Wilayah 2',
+        status: statusW2,
+        slot: slotW2,
+      },
+    ],
+  };
+}
+

@@ -157,6 +157,24 @@ export async function hapusDataUndianDariDb(): Promise<void> {
 }
 
 /**
+ * Menghapus hanya state progres undian tanpa menghapus paket data peserta.
+ */
+export async function resetStateUndianDb(): Promise<void> {
+  const db = await bukaDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(['state'], 'readwrite');
+    tx.objectStore('state').clear();
+
+    tx.oncomplete = () => {
+      resolve();
+    };
+    tx.onerror = () => {
+      reject(new Error(tx.error?.message ?? 'Gagal mengosongkan state undian'));
+    };
+  });
+}
+
+/**
  * Membaca atau membuat ID perangkat unik per instalasi browser/PWA.
  */
 export async function ambilPerangkatId(): Promise<string> {

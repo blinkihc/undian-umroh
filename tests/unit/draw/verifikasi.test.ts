@@ -71,38 +71,10 @@ describe('Verifikasi Hasil Undian (10 Pemeriksaan Berurutan)', () => {
       },
       {
         urutan: 2,
-        kode: 'W1-C1',
-        urut: 2,
-        pemenang: dummyPeserta(2, 'W1', 'Cadangan 1 W1', 'MUARADUA'),
-        diundiAt: '2026-10-12T09:10:00.000Z',
-      },
-      {
-        urutan: 3,
-        kode: 'W1-C2',
-        urut: 3,
-        pemenang: dummyPeserta(3, 'W1', 'Cadangan 2 W1', 'MUARADUA'),
-        diundiAt: '2026-10-12T09:15:00.000Z',
-      },
-      {
-        urutan: 4,
         kode: 'W2-UTAMA',
         urut: 4,
         pemenang: dummyPeserta(4, 'W2', 'Pemenang 2', 'BANDING AGUNG'),
         diundiAt: '2026-10-12T09:20:00.000Z',
-      },
-      {
-        urutan: 5,
-        kode: 'W2-C1',
-        urut: 5,
-        pemenang: dummyPeserta(5, 'W2', 'Cadangan 1 W2', 'BANDING AGUNG'),
-        diundiAt: '2026-10-12T09:25:00.000Z',
-      },
-      {
-        urutan: 6,
-        kode: 'W2-C2',
-        urut: 6,
-        pemenang: dummyPeserta(6, 'W2', 'Cadangan 2 W2', 'BANDING AGUNG'),
-        diundiAt: '2026-10-12T09:30:00.000Z',
       },
     ];
   }
@@ -114,7 +86,7 @@ describe('Verifikasi Hasil Undian (10 Pemeriksaan Berurutan)', () => {
   ): StateUndian {
     return {
       fase: 'SELESAI',
-      slotAktifIndex: 5,
+      slotAktifIndex: 1,
       slotSelesai,
       dimulaiAt: dimulaiAt ?? '2026-10-12T09:00:00.000Z',
       selesaiAt: selesaiAt ?? '2026-10-12T09:35:00.000Z',
@@ -199,19 +171,18 @@ describe('Verifikasi Hasil Undian (10 Pemeriksaan Berurutan)', () => {
     const slotSalah: HasilSlotUndian[] = [
       {
         urutan: 1,
-        kode: 'W1-C1',
-        urut: s0.urut,
-        pemenang: s0.pemenang,
-        diundiAt: s0.diundiAt,
-      },
-      {
-        urutan: 2,
-        kode: 'W1-UTAMA',
+        kode: 'W2-UTAMA',
         urut: s1.urut,
         pemenang: s1.pemenang,
         diundiAt: s1.diundiAt,
       },
-      ...daftarSlot.slice(2),
+      {
+        urutan: 2,
+        kode: 'W1-UTAMA',
+        urut: s0.urut,
+        pemenang: s0.pemenang,
+        diundiAt: s0.diundiAt,
+      },
     ];
 
     const hasilSalah = await bangunFileHasil({
@@ -269,12 +240,12 @@ describe('Verifikasi Hasil Undian (10 Pemeriksaan Berurutan)', () => {
     if (!s0) {
       throw new Error('Data slot awal tidak valid');
     }
-    // Peserta urut 4 adalah wilayah W2, tapi ditaruh di slot W1-UTAMA
+    // Peserta urut 5 adalah wilayah W2, tapi ditaruh di slot W1-UTAMA (unik dari slot 2 urut 4)
     const slotTukar: HasilSlotUndian[] = [
       {
         urutan: s0.urutan,
         kode: s0.kode,
-        urut: 4,
+        urut: 5,
         pemenang: s0.pemenang,
         diundiAt: s0.diundiAt,
       },
@@ -314,7 +285,6 @@ describe('Verifikasi Hasil Undian (10 Pemeriksaan Berurutan)', () => {
         pemenang: s1.pemenang,
         diundiAt: s1.diundiAt,
       },
-      ...daftarSlot.slice(2),
     ];
 
     const hasilSalah = await bangunFileHasil({
@@ -352,21 +322,18 @@ describe('Verifikasi Hasil Undian (10 Pemeriksaan Berurutan)', () => {
     const daftarSlot = slotBawaan();
     const s0 = daftarSlot[0];
     const s1 = daftarSlot[1];
-    const s2 = daftarSlot[2];
-    if (!s0 || !s1 || !s2) {
+    if (!s0 || !s1) {
       throw new Error('Data slot awal tidak valid');
     }
     const slotMundur: HasilSlotUndian[] = [
       s0,
-      s1,
       {
-        urutan: s2.urutan,
-        kode: s2.kode,
-        urut: s2.urut,
-        pemenang: s2.pemenang,
+        urutan: s1.urutan,
+        kode: s1.kode,
+        urut: s1.urut,
+        pemenang: s1.pemenang,
         diundiAt: '2026-10-12T09:01:00.000Z',
       },
-      ...daftarSlot.slice(3),
     ];
     const hasilMundur = await bangunFileHasil({
       periodeId,

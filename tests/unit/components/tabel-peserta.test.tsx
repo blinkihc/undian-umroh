@@ -1,8 +1,15 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import { TabelPeserta, type PesertaTampil } from '@/components/admin/peserta/tabel-peserta';
 import { Paginasi, susunQuery } from '@/components/ui/paginasi';
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}));
 
 const DASAR: PesertaTampil = {
   id: 'a',
@@ -41,6 +48,27 @@ describe('TabelPeserta', () => {
     expect(gugur).toHaveTextContent('Format tanggal lunas tahun 2024 tidak dikenali.');
     expect(lolos).toHaveTextContent('Lolos');
     expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toContain('Lunas 2026');
+  });
+
+  it('menampilkan tombol Gugurkan saat periodeId dan bisaUbah aktif, serta membuka modal konfirmasi', () => {
+    render(
+      <TabelPeserta
+        baris={[
+          { ...DASAR, id: 'b', baris: 3, eligible: true, alasan: [] },
+          { ...DASAR, id: 'c', baris: 4, eligible: false, alasan: ['NOP_INVALID'] },
+        ]}
+        periodeId="p1"
+        bisaUbah={true}
+      />,
+    );
+
+    expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toContain('Aksi');
+    const tombolGugur = screen.getByRole('button', { name: 'Gugurkan' });
+    expect(tombolGugur).toBeInTheDocument();
+
+    fireEvent.click(tombolGugur);
+    expect(screen.getByRole('heading', { name: 'Gugurkan Peserta' })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Bukan warga setempat/i)).toBeInTheDocument();
   });
 });
 

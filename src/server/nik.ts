@@ -19,11 +19,56 @@ function kunci(): Buffer {
  * `iv(12) || ciphertext || tag(16)`. IV acak per nilai sehingga NIK sama tidak menghasilkan
  * ciphertext sama.
  */
-export function enkripsiNik(nik: string, kunciEnkripsi: Buffer = kunci()): Buffer {
-  const iv = randomBytes(PANJANG_IV);
+export function enkripsiNik(
+  nik: string,
+  kunciEnkripsi: Buffer = kunci(),
+  vektorIn?: Buffer,
+): Buffer {
+  const iv = vektorIn ?? randomBytes(PANJANG_IV);
   const cipher = createCipheriv('aes-256-gcm', kunciEnkripsi, iv);
-  const isi = Buffer.concat([cipher.update(nik, 'utf8'), cipher.final()]);
-  return Buffer.concat([iv, isi, cipher.getAuthTag()]);
+  const isi = cipher.update(nik, 'utf8');
+  cipher.final();
+  const tag = cipher.getAuthTag();
+  const hasil = Buffer.allocUnsafe(PANJANG_IV + isi.length + PANJANG_TAG);
+  iv.copy(hasil, 0);
+  isi.copy(hasil, PANJANG_IV);
+  tag.copy(hasil, PANJANG_IV + isi.length);
+  return hasil;
+}
+
+/**
+ * Mengenkripsi banyak NIK dalam batch efisien (mengurangi churn garbage collection randomBytes).
+ */
+export function enkripsiBanyakNik(
+  daftarNik: string[],
+  kunciEnkripsi: Buffer = kunci(),
+): (Uint8Array | null)[] {
+  const hasil: (Uint8Array | null)[] = new Array(daftarNik.length);
+  const indeksValid: number[] = [];
+
+  for (let i = 0; i < daftarNik.length; i++) {
+    const n = daftarNik[i];
+    if (n !== undefined && n !== '') {
+      indeksValid.push(i);
+    } else {
+      hasil[i] = null;
+    }
+  }
+
+  const UKURAN_POOL = 10_000;
+  for (let b = 0; b < indeksValid.length; b += UKURAN_POOL) {
+    const chunk = indeksValid.slice(b, b + UKURAN_POOL);
+    const poolIv = randomBytes(PANJANG_IV * chunk.length);
+
+    for (let j = 0; j < chunk.length; j++) {
+      const idx = chunk[j]!;
+      const iv = poolIv.subarray(j * PANJANG_IV, (j + 1) * PANJANG_IV);
+      const enc = enkripsiNik(daftarNik[idx]!, kunciEnkripsi, iv);
+      hasil[idx] = new Uint8Array(enc);
+    }
+  }
+
+  return hasil;
 }
 
 /**

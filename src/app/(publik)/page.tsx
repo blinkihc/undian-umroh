@@ -1,35 +1,36 @@
-import { Info } from 'lucide-react';
-import type { ReactElement } from 'react';
+import { type Metadata } from 'next';
+import { type ReactElement } from 'react';
 
-import { JUDUL_ACARA_DEFAULT } from '@/config/brand';
+import { KontenBeranda } from '@/components/publik/beranda/konten-beranda';
+import { JUDUL_ACARA_DEFAULT, PENYELENGGARA } from '@/config/brand';
+import { ambilRingkasanBeranda } from '@/server/services/beranda';
 
-export default function BerandaPage(): ReactElement {
+export const metadata: Metadata = {
+  title: `Apresiasi Akbar PBB-P2 2026 • ${PENYELENGGARA}`,
+  description:
+    'Penghargaan tertinggi bagi Wajib Pajak PBB-P2 teladan Kabupaten OKU Selatan lunas 5 tahun berturut-turut. Dua jemaah diberangkatkan ke Tanah Suci melalui undian berintegritas tinggi.',
+};
+
+export const dynamic = 'force-dynamic';
+
+export default async function BerandaPage(): Promise<ReactElement> {
+  const ringkasan = await ambilRingkasanBeranda();
+
   return (
-    <section className="mx-auto max-w-[1280px] px-4 py-8 md:px-6 md:py-12">
-      <div className="max-w-[720px]">
-        <p className="text-sm font-semibold text-primary-700">Bapenda Kabupaten OKU Selatan</p>
-        <h1 className="mt-2 font-heading text-h1-mobile font-bold text-neutral-900 md:text-h1">
-          {JUDUL_ACARA_DEFAULT}
-        </h1>
-        <p className="mt-4 text-base text-neutral-600">
-          Undian umroh untuk wajib pajak PBB-P2 yang melunasi pajaknya dari tahun 2022 sampai 2026.
-          Dua paket umroh diundi secara terbuka, satu untuk setiap wilayah.
-        </p>
-      </div>
-
+    <div className="min-h-screen bg-gradient-to-b from-[#072d1a] via-[#0a3822] to-[#052113] text-white selection:bg-emerald-600 selection:text-white relative">
+      {/* Pola ornamen geometris list putih islami */}
       <div
-        role="status"
-        className="mt-8 flex max-w-[720px] items-start gap-3 rounded-md border border-primary-700 bg-primary-100 p-4"
-      >
-        <Info aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-primary-700" />
-        <div>
-          <p className="text-base font-semibold text-neutral-900">Halaman ini sedang disiapkan</p>
-          <p className="mt-1 text-sm text-neutral-600">
-            Pengumuman pemenang dan fitur cek NOP akan tersedia di sini setelah data peserta
-            ditetapkan.
-          </p>
-        </div>
+        className="absolute inset-0 pattern-islamic-white opacity-[0.16] pointer-events-none"
+        aria-hidden="true"
+      />
+      {/* Ornamen garis geometris list putih di tepian atas */}
+      <div 
+        className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none" 
+        aria-hidden="true" 
+      />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-24">
+        <KontenBeranda ringkasan={ringkasan} />
       </div>
-    </section>
+    </div>
   );
 }

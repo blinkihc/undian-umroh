@@ -19,3 +19,9 @@ docs/contoh data.*
 src/generated/
 # Fixture sintetis besar (npm run fixture:generate)
 tests/fixtures/impor/generated/
+
+# Konfigurasi IDE dan perkakas lokal
+.vscode/
+.gemini/
+.agents/
+vskill.lock

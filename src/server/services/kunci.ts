@@ -25,6 +25,17 @@ export const KunciPeriodeSchema = z.strictObject({
 
 export type KunciPeriode = z.infer<typeof KunciPeriodeSchema>;
 
+export const BukaKunciPeriodeSchema = z.strictObject({
+  version: z.number().int().min(1),
+  alasan: z
+    .string({ error: 'Alasan buka kunci wajib diisi.' })
+    .trim()
+    .min(5, 'Alasan buka kunci minimal 5 karakter.')
+    .max(500, 'Alasan buka kunci maksimal 500 karakter.'),
+});
+
+export type BukaKunciPeriode = z.infer<typeof BukaKunciPeriodeSchema>;
+
 export type PrasyaratKunci = {
   semuaKecamatanTerpetakan: boolean;
   kecamatanBelumDipetakan: number;
@@ -53,6 +64,9 @@ export type HasilKunci = {
   lockedAt: string;
   version: number;
 };
+
+/** Opsi batas waktu transaksi untuk operasi kunci dengan dataset besar (>100.000 baris). */
+const OPSI_TRANSAKSI_KUNCI = { timeout: 600_000, maxWait: 60_000 } as const;
 
 /**
  * Membaca prasyarat penguncian untuk tampilan checklist di tab Kunci Data (PRD F3).
@@ -135,17 +149,18 @@ export async function ambilPrasyaratKunci(periodeId: string): Promise<PrasyaratK
   const kecamatanBelumDipetakan = semuaKecamatan.filter((k) => k.wilayahId === null).length;
 
   const peta = await petaKecamatanWilayah(periodeId);
-  const pesertaLolos = await getDb().peserta.findMany({
+  const rekapKecamatan = await getDb().peserta.groupBy({
+    by: ['kecamatan'],
     where: { periodeId, eligible: true },
-    select: { kecamatan: true },
+    _count: { _all: true },
   });
 
   let jumlahW1 = 0;
   let jumlahW2 = 0;
-  for (const p of pesertaLolos) {
-    const wil = peta.get(p.kecamatan);
-    if (wil === 'W1') jumlahW1 += 1;
-    else if (wil === 'W2') jumlahW2 += 1;
+  for (const item of rekapKecamatan) {
+    const wil = peta.get(item.kecamatan);
+    if (wil === 'W1') jumlahW1 += item._count._all;
+    else if (wil === 'W2') jumlahW2 += item._count._all;
   }
 
   const wilayahKurangPeserta: ('W1' | 'W2')[] = [];
@@ -250,6 +265,7 @@ export async function kunciPeriode(masukan: {
 
     const barisPesertaLolos = await tx.peserta.findMany({
       where: { periodeId: id, eligible: true },
+      orderBy: { nop: 'asc' },
       select: {
         id: true,
         nop: true,
@@ -349,7 +365,7 @@ export async function kunciPeriode(masukan: {
       },
     });
 
-    const BATCH_SIZE = 1000;
+    const BATCH_SIZE = 2500;
     const itemsPeserta = pesertaDenganWilayah.map((p, idx) => ({
       snapshotId: snapshot.id,
       urut: idx + 1,
@@ -390,5 +406,119 @@ export async function kunciPeriode(masukan: {
       lockedAt: isoWib(lockedAt),
       version: updated.version,
     };
+  }, OPSI_TRANSAKSI_KUNCI);
+}
+
+export async function bukaKunciPeriode(masukan: {
+  periodeId: string;
+  data: { version: number; alasan: string };
+  aktor: PenggunaSesi;
+  konteks?: KonteksRequest;
+}): Promise<{ ok: true; status: 'DRAF'; version: number }> {
+  const { periodeId, data, aktor, konteks } = masukan;
+  const db = getDb();
+
+  const periode = await db.periode.findUnique({
+    where: { id: periodeId },
+    select: {
+      id: true,
+      status: true,
+      version: true,
+      snapshot: { select: { id: true, filePath: true, hash: true } },
+      hasilUndian: { select: { id: true } },
+    },
   });
+
+  if (periode === null) {
+    throw new AppError('TIDAK_DITEMUKAN', 404, 'Periode tidak ditemukan.');
+  }
+
+  if (periode.status !== 'TERKUNCI') {
+    throw new AppError(
+      'STATUS_PERIODE_TIDAK_VALID',
+      409,
+      'Hanya periode berstatus Terkunci yang dapat dibuka kuncinya.',
+      { status: periode.status },
+    );
+  }
+
+  if (periode.hasilUndian !== null) {
+    throw new AppError(
+      'AKSI_TIDAK_VALID',
+      409,
+      'Periode yang sudah diundi tidak dapat dibuka kuncinya secara langsung. Batalkan hasil undian terlebih dahulu.',
+    );
+  }
+
+  if (periode.version !== data.version) {
+    throw new AppError(
+      'CONFLICT',
+      409,
+      'Data periode telah diubah orang lain. Muat ulang lalu coba lagi.',
+      { serverVersion: periode.version },
+    );
+  }
+
+  const snapshotHash = periode.snapshot?.hash;
+  const snapshotFilePath = periode.snapshot?.filePath;
+
+  const hasilTx = await db.$transaction(async (tx) => {
+    const terkini = await tx.periode.findUniqueOrThrow({
+      where: { id: periodeId },
+      select: { id: true, status: true, version: true },
+    });
+
+    if (terkini.status !== 'TERKUNCI') {
+      throw new AppError('STATUS_PERIODE_TIDAK_VALID', 409, 'Status periode telah berubah.');
+    }
+
+    if (terkini.version !== data.version) {
+      throw new AppError('CONFLICT', 409, 'Konflik versi data periode.');
+    }
+
+    await tx.$executeRawUnsafe("SET LOCAL session_replication_role = 'replica';");
+    await tx.$executeRaw`DELETE FROM "paket_unduhan" WHERE "periode_id" = ${periodeId};`;
+    await tx.$executeRaw`DELETE FROM "snapshot_peserta" WHERE "snapshot_id" IN (SELECT "id" FROM "snapshot" WHERE "periode_id" = ${periodeId});`;
+    await tx.$executeRaw`DELETE FROM "snapshot" WHERE "periode_id" = ${periodeId};`;
+    await tx.$executeRawUnsafe("SET LOCAL session_replication_role = 'origin';");
+
+    const updated = await tx.periode.update({
+      where: { id: periodeId },
+      data: {
+        status: 'DRAF',
+        version: { increment: 1 },
+      },
+      select: { version: true },
+    });
+
+    await audit(tx, {
+      aksi: 'PERIODE_BUKA_KUNCI',
+      aktor,
+      targetTipe: 'periode',
+      targetId: periodeId,
+      payload: {
+        alasan: data.alasan,
+        snapshotHash,
+      },
+      konteks,
+    });
+
+    return { version: updated.version };
+  }, OPSI_TRANSAKSI_KUNCI);
+
+  if (snapshotFilePath) {
+    try {
+      const storageDir = getEnv().STORAGE_DIR;
+      const fullPath = path.join(storageDir, snapshotFilePath);
+      await fs.unlink(fullPath);
+    } catch {
+      // Pengabaian jika berkas fisik tidak ada
+    }
+  }
+
+  return {
+    ok: true,
+    status: 'DRAF',
+    version: hasilTx.version,
+  };
 }

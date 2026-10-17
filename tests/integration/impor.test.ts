@@ -260,15 +260,15 @@ describe('POST /api/periode/:id/impor', () => {
       await galat(await impor(formImpor(csv(BARIS_LOLOS), { nama: 'data.txt' }))),
     ).toMatchObject({
       code: 'FILE_TIDAK_VALID',
-      message: 'File harus .csv atau .xlsx, maksimal 20 MB.',
+      message: 'File harus .csv atau .xlsx, maksimal 100 MB.',
     });
     expect((await galat(await impor(formImpor('x', { nama: 'data.XLSX' })))).message).toMatch(
       /^Isi file tidak sesuai ekstensinya/,
     );
   });
 
-  it('file lebih dari 20 MB ditolak 413', async () => {
-    const besar = new Uint8Array(20 * 1024 * 1024 + 1).fill(0x41);
+  it('file lebih dari 100 MB ditolak 413', async () => {
+    const besar = new Uint8Array(100 * 1024 * 1024 + 1).fill(0x41);
 
     expect(await galat(await impor(formImpor(besar)))).toMatchObject({
       status: 413,

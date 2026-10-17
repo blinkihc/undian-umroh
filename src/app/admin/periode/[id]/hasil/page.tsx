@@ -20,5 +20,12 @@ export default async function HalamanHasilAdmin({ params }: HalamanProps): Promi
     notFound();
   }
 
-  return <UnggahHasil periodeId={periode.id} statusPeriode={periode.status} isAdmin={true} />;
+  return (
+    <UnggahHasil
+      periodeId={periode.id}
+      statusPeriode={periode.status}
+      version={periode.version}
+      isAdmin={true}
+    />
+  );
 }

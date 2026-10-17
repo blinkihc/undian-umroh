@@ -1,0 +1,25 @@
+# Caddyfile untuk reverse proxy HTTPS Undian Umroh OKU Selatan
+# Caddy bertindak sebagai satu-satunya proxy tepercaya untuk menyajikan HTTPS dan IP klien.
+
+{$APP_DOMAIN:localhost} {
+  encode gzip zstd
+
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    -Server
+  }
+
+  reverse_proxy app:3000 {
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Forwarded-Host {host}
+  }
+
+  log {
+    output stdout
+    format console
+  }
+}

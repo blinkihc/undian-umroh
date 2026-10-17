@@ -42,13 +42,19 @@ type KelolaPemenangProps = {
 
 export function KelolaPemenang({
   periodeId,
-  statusPeriode: _statusPeriode,
+  statusPeriode: statusPeriodeAwal,
 }: KelolaPemenangProps): ReactElement {
   const [dataPemenang, setDataPemenang] = useState<PemenangPeriodeRespons | null>(null);
+  const [statusPeriode, setStatusPeriode] = useState(statusPeriodeAwal);
   const [memuat, setMemuat] = useState(true);
   const [galat, setGalat] = useState<string | null>(null);
   const [sukses, setSukses] = useState<string | null>(null);
   const [pesanKonflik, setPesanKonflik] = useState<string | null>(null);
+
+  // State Modal Publikasi
+  const [bukaModalPublikasi, setBukaModalPublikasi] = useState(false);
+  const [memuatPublikasi, setMemuatPublikasi] = useState(false);
+  const [galatPublikasi, setGalatPublikasi] = useState<string | null>(null);
 
   // Slot aktif untuk aksi
   const [slotTerpilih, setSlotTerpilih] = useState<SlotPemenangRespons | null>(null);
@@ -206,7 +212,7 @@ export function KelolaPemenang({
       setDataPemenang(hasil);
       setBukaModalGugur(false);
       setSukses(
-        `Kandidat pada slot ${slotTerpilih.kode} telah ditandai gugur. Hadiah dialihkan ke cadangan berikutnya.`,
+        `Kandidat pada slot ${slotTerpilih.kode} telah ditandai gugur.`,
       );
     } catch (err) {
       setGalatGugur(err instanceof Error ? err.message : 'Terjadi kegagalan.');
@@ -258,6 +264,51 @@ export function KelolaPemenang({
     }
   };
 
+  // Aksi Publikasi
+  const tanganiPublikasi = async (): Promise<void> => {
+    setMemuatPublikasi(true);
+    setGalatPublikasi(null);
+    setSukses(null);
+    setPesanKonflik(null);
+
+    try {
+      const infoRes = await fetch(`/api/periode/${periodeId}`);
+      if (!infoRes.ok) {
+        throw new Error('Gagal mengambil data periode.');
+      }
+      const infoPeriode = (await infoRes.json()) as { version: number };
+
+      const res = await fetch(`/api/periode/${periodeId}/publikasi`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ version: infoPeriode.version }),
+      });
+
+      if (res.status === 409) {
+        setPesanKonflik('Data periode telah diubah oleh pengguna lain. Silakan muat ulang.');
+        setBukaModalPublikasi(false);
+        return;
+      }
+
+      if (!res.ok) {
+        const errJson = (await res.json().catch(() => ({}))) as {
+          pesan?: string;
+          error?: { message?: string };
+        };
+        throw new Error(errJson.pesan ?? errJson.error?.message ?? 'Gagal mempublikasikan hasil.');
+      }
+
+      setStatusPeriode('DIPUBLIKASI');
+      setBukaModalPublikasi(false);
+      setSukses('Hasil undian resmi dipublikasikan ke halaman publik (/pemenang).');
+      await muatData();
+    } catch (err) {
+      setGalatPublikasi(err instanceof Error ? err.message : 'Terjadi kesalahan sistem.');
+    } finally {
+      setMemuatPublikasi(false);
+    }
+  };
+
   if (memuat) {
     return (
       <div className="flex h-64 items-center justify-center rounded-lg border border-neutral-300 bg-neutral-0 p-8">
@@ -296,6 +347,39 @@ export function KelolaPemenang({
           <p className="mt-1 text-sm text-neutral-600">
             Silakan unggah file hasil undian pada tab &quot;Unggah Hasil&quot; terlebih dahulu.
           </p>
+        </div>
+      )}
+
+      {adaSlot && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-neutral-300 bg-white p-5 shadow-xs">
+          <div>
+            <h3 className="text-sm font-bold text-neutral-900">Publikasi Hasil ke Masyarakat</h3>
+            <p className="mt-0.5 text-xs text-neutral-600">
+              {statusPeriode === 'DIPUBLIKASI'
+                ? 'Hasil telah dipublikasikan secara resmi di halaman publik /pemenang.'
+                : 'Publikasikan daftar pemenang agar dapat dilihat oleh publik.'}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {statusPeriode === 'DIPUBLIKASI' ? (
+              <a
+                href="/pemenang"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Lihat Halaman Publik (/pemenang)
+              </a>
+            ) : (
+              <Button
+                varian="primary"
+                onClick={() => setBukaModalPublikasi(true)}
+              >
+                Publikasikan Hasil
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
@@ -753,6 +837,67 @@ export function KelolaPemenang({
                   Tampilkan NIK
                 </Button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Publikasi Hasil */}
+      {bukaModalPublikasi && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="judul-modal-publikasi"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        >
+          <div className="w-full max-w-md rounded-lg bg-neutral-0 p-6 shadow-xl">
+            <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
+              <h3 id="judul-modal-publikasi" className="text-base font-bold text-neutral-900">
+                Publikasikan Hasil Undian
+              </h3>
+              <button
+                type="button"
+                onClick={() => setBukaModalPublikasi(false)}
+                className="text-neutral-500 hover:text-neutral-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3 text-sm text-neutral-600">
+              <p>
+                Anda akan mempublikasikan daftar pemenang ke halaman publik (<strong>/pemenang</strong>).
+              </p>
+              <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-700">
+                • Data NIK dan NOP akan disamarkan secara otomatis demi privasi wajib pajak.<br />
+                • Alasan gugur dan catatan internal tidak akan ditampilkan ke publik.<br />
+                • Bukti integritas berupa hash SHA-256 snapshot dan hasil undian akan disertakan.<br />
+                • Status periode menjadi <strong>Dipublikasi</strong> dan melepaskan aturan satu periode aktif.
+              </div>
+
+              {galatPublikasi !== null && (
+                <Alert jenis="galat" judul="Galat">
+                  {galatPublikasi}
+                </Alert>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3 border-t border-neutral-200 pt-4">
+              <Button
+                varian="secondary"
+                onClick={() => setBukaModalPublikasi(false)}
+                disabled={memuatPublikasi}
+              >
+                Batal
+              </Button>
+              <Button
+                varian="primary"
+                memuat={memuatPublikasi}
+                labelMemuat="Mempublikasikan..."
+                onClick={() => void tanganiPublikasi()}
+              >
+                Ya, Publikasikan Sekarang
+              </Button>
             </div>
           </div>
         </div>

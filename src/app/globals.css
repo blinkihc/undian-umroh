@@ -10,6 +10,8 @@
 
   --color-transparent: transparent;
   --color-current: currentColor;
+  --color-white: #ffffff;
+  --color-black: #000000;
 
   --color-primary-900: #062a55;
   --color-primary-700: #0b4f9c;
@@ -31,6 +33,46 @@
   --color-danger-100: #fee2e2;
   --color-info-700: #0b4f9c;
 
+  /* Palet Khidmat Islami & Penghargaan (Oasis & Champagne) untuk Beranda Publik & Layar Undian */
+  --color-oasis-950: #021611;
+  --color-oasis-900: #04231b;
+  --color-oasis-800: #07382c;
+  --color-oasis-700: #0a4f3e;
+  --color-oasis-600: #0f6c56;
+  --color-oasis-500: #168e72;
+
+  --color-champagne-100: #fcf8ee;
+  --color-champagne-200: #f6eccf;
+  --color-champagne-300: #eddcb0;
+  --color-champagne-400: #e2c481;
+  --color-champagne-500: #cfab5f;
+  --color-champagne-600: #b38e41;
+
+  --color-alabaster: #fcfbf7;
+  --color-sand-50: #fbf9f4;
+  --color-sand-100: #f4f0e6;
+  --color-sand-200: #e8e1cf;
+  --color-sand-300: #d7cbaf;
+
+  /* Palet Hijau Bersih & Slate untuk Portal Publik */
+  --color-emerald-50: #f0fdf4;
+  --color-emerald-100: #dcfce7;
+  --color-emerald-200: #bbf7d0;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-emerald-800: #065f46;
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+
   /* Spasi: kelipatan 4px bawaan Tailwind; skala resmi 4, 8, 12, 16, 24, 32, 48, 64, 96 = 1, 2, 3, 4, 6, 8, 12, 16, 24. */
   --spacing: 0.25rem;
 
@@ -44,6 +86,8 @@
   --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
   --shadow-md: 0 4px 12px rgb(15 23 42 / 0.08);
   --shadow-lg: 0 16px 40px rgb(6 42 85 / 0.35);
+  --shadow-royal: 0 25px 60px -15px rgb(2 22 17 / 0.45), 0 0 40px rgb(226 196 129 / 0.15);
+  --shadow-emboss: inset 0 1px 1px rgba(255, 255, 255, 0.25), inset 0 -1px 2px rgba(0, 0, 0, 0.3);
 
   /* Skala teks Panel & Publik (§4). text-base 16/24 dan text-sm 14/20 sudah sesuai bawaan. */
   --text-h1: 2rem;
@@ -103,3 +147,65 @@
     }
   }
 }
+
+@layer utilities {
+  .ornate-border {
+    border: 1px solid rgba(226, 196, 129, 0.3);
+    background-clip: padding-box;
+  }
+  .gold-emboss-gradient {
+    background: linear-gradient(135deg, #fcf8ee 0%, #e2c481 45%, #b38e41 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .editorial-badge {
+    background: linear-gradient(135deg, rgba(226, 196, 129, 0.15) 0%, rgba(7, 56, 44, 0.8) 100%);
+    border: 1px solid rgba(226, 196, 129, 0.4);
+  }
+  .pass-paper {
+    background: linear-gradient(165deg, #093c30 0%, #062b21 55%, #042018 100%);
+    border: 1px solid rgba(226, 196, 129, 0.35);
+    box-shadow: 0 35px 80px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(226, 196, 129, 0.15);
+  }
+  .watermark-islamic {
+    background-image: radial-gradient(rgba(226, 196, 129, 0.08) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  .noise-layer {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  .holo-sheen {
+    background: linear-gradient(105deg, transparent 20%, rgba(226, 196, 129, 0.15) 35%, rgba(255, 255, 255, 0.25) 45%, rgba(226, 196, 129, 0.15) 55%, transparent 70%);
+    background-size: 200% 100%;
+    animation: sheenShift 8s infinite linear;
+  }
+  .pattern-islamic-white {
+    background-image: 
+      radial-gradient(circle at center, rgba(255, 255, 255, 0.16) 1.2px, transparent 1.2px),
+      linear-gradient(45deg, rgba(255, 255, 255, 0.06) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.06) 75%),
+      linear-gradient(-45deg, rgba(255, 255, 255, 0.06) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.06) 75%);
+    background-size: 36px 36px, 36px 36px, 36px 36px;
+  }
+  .glass-metallic {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.16) 100%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35), inset 0 1px 1px 0 rgba(255, 255, 255, 0.35);
+  }
+  .border-white-ornate {
+    border: 1.5px solid rgba(255, 255, 255, 0.35);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  }
+}
+
+@keyframes sheenShift {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+

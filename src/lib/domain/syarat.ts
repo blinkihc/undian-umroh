@@ -66,13 +66,24 @@ const PESAN_TAHUN: Record<(typeof JENIS_ALASAN_TAHUN)[number], (tahun: string) =
 };
 
 /** Pesan Indonesia untuk satu kode alasan (PRD §6.0). */
-export function pesanAlasan(kode: KodeAlasan): string {
+export function pesanAlasan(kode: KodeAlasan | string): string {
   if (kode in PESAN_UMUM) {
     return PESAN_UMUM[kode as keyof typeof PESAN_UMUM];
   }
+  if (kode.startsWith('DISKUALIFIKASI_MANUAL:')) {
+    return kode.slice('DISKUALIFIKASI_MANUAL:'.length).trim();
+  }
+  if (kode === 'DISKUALIFIKASI_MANUAL') {
+    return 'Digugurkan manual oleh Admin.';
+  }
   // Kode per tahun selalu berakhiran `_<TAHUN>` empat digit.
-  const jenis = kode.slice(0, -5) as keyof typeof PESAN_TAHUN;
-  return PESAN_TAHUN[jenis](kode.slice(-4));
+  if (kode.length > 5) {
+    const jenis = kode.slice(0, -5) as keyof typeof PESAN_TAHUN;
+    if (jenis in PESAN_TAHUN) {
+      return PESAN_TAHUN[jenis](kode.slice(-4));
+    }
+  }
+  return kode;
 }
 
 /** Kode alasan yang dikenal sistem (untuk memvalidasi filter dan data tersimpan). */

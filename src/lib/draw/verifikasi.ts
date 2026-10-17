@@ -8,11 +8,7 @@ import {
 
 export const SLOT_URUTAN_RESMI: readonly KodeSlotPaket[] = [
   'W1-UTAMA',
-  'W1-C1',
-  'W1-C2',
   'W2-UTAMA',
-  'W2-C1',
-  'W2-C2',
 ] as const;
 
 export type KodePemeriksaanHasil =
@@ -109,7 +105,7 @@ export async function verifikasiHasilMurni(
   }
 
   // 5. SLOT_LENGKAP
-  if (hasil.slot.length !== 6) {
+  if (hasil.slot.length !== SLOT_URUTAN_RESMI.length) {
     return {
       valid: false,
       kode: 'SLOT_LENGKAP',
@@ -139,7 +135,20 @@ export async function verifikasiHasilMurni(
     }
   }
 
-  // 7. WILAYAH_SESUAI
+  // 7. PESERTA_UNIK
+  const urutSet = new Set<number>();
+  for (const s of hasil.slot) {
+    if (urutSet.has(s.urut)) {
+      return {
+        valid: false,
+        kode: 'PESERTA_UNIK',
+        pesan: 'Peserta yang sama muncul di lebih dari satu slot.',
+      };
+    }
+    urutSet.add(s.urut);
+  }
+
+  // 8. WILAYAH_SESUAI
   for (const s of hasil.slot) {
     const peserta = konteks.pesertaByUrut.get(s.urut);
     const targetWilayah: 'W1' | 'W2' = s.kode.startsWith('W1') ? 'W1' : 'W2';
@@ -153,19 +162,6 @@ export async function verifikasiHasilMurni(
         slot: s.kode,
       };
     }
-  }
-
-  // 8. PESERTA_UNIK
-  const urutSet = new Set<number>();
-  for (const s of hasil.slot) {
-    if (urutSet.has(s.urut)) {
-      return {
-        valid: false,
-        kode: 'PESERTA_UNIK',
-        pesan: 'Peserta yang sama muncul di lebih dari satu slot.',
-      };
-    }
-    urutSet.add(s.urut);
   }
 
   // 9. WAKTU

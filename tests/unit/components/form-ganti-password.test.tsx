@@ -41,6 +41,23 @@ describe('FormGantiPassword', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
+  it('dapat menampilkan dan menyembunyikan kata sandi saat tombol toggle diklik', async () => {
+    render(<FormGantiPassword username="admin" wajib={false} beranda="/admin" />);
+
+    const fieldBaru = screen.getByLabelText(/^Kata sandi baru/);
+    expect(fieldBaru).toHaveAttribute('type', 'password');
+
+    const tombolLihatList = screen.getAllByRole('button', { name: 'Tampilkan kata sandi' });
+    expect(tombolLihatList).toHaveLength(3);
+
+    await userEvent.click(tombolLihatList[1]!);
+    expect(fieldBaru).toHaveAttribute('type', 'text');
+
+    const tombolSembunyi = screen.getByRole('button', { name: 'Sembunyikan kata sandi' });
+    await userEvent.click(tombolSembunyi);
+    expect(fieldBaru).toHaveAttribute('type', 'password');
+  });
+
   it('memvalidasi di klien: terlalu pendek, sama dengan username, sama dengan lama, tidak cocok', async () => {
     render(<FormGantiPassword username="admin.bapenda" wajib={false} beranda="/admin" />);
 

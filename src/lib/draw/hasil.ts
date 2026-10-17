@@ -1,13 +1,14 @@
 import { z } from 'zod';
 
 import { canonicalStringify, sha256Hex } from '@/lib/package/hash';
+import { SLOT_URUTAN } from '@/lib/package/kontrak';
 
 import { type StateUndian } from './types';
 
 export const SlotHasilItemSchema = z
   .object({
-    urutan: z.number().int().min(1).max(6),
-    kode: z.enum(['W1-UTAMA', 'W1-C1', 'W1-C2', 'W2-UTAMA', 'W2-C1', 'W2-C2']),
+    urutan: z.number().int().min(1).max(SLOT_URUTAN.length),
+    kode: z.enum(['W1-UTAMA', 'W2-UTAMA', 'W1-C1', 'W1-C2', 'W2-C1', 'W2-C2']),
     urut: z.number().int().min(1),
     diundiAt: z.string().min(1),
   })
@@ -38,7 +39,7 @@ export const HasilUndianTanpaHashSchema = z
     perangkat: PerangkatSchema,
     dimulaiAt: z.string().min(1),
     selesaiAt: z.string().min(1),
-    slot: z.array(SlotHasilItemSchema).length(6),
+    slot: z.array(SlotHasilItemSchema).length(SLOT_URUTAN.length),
     catatanLokal: z.array(CatatanLokalItemSchema),
   })
   .strict();
@@ -73,8 +74,8 @@ export async function bangunFileHasil(params: {
 }): Promise<HasilUndianData> {
   const { periodeId, snapshotHash, temaConfigHash, perangkat, state } = params;
 
-  if (state.slotSelesai.length !== 6) {
-    throw new Error('Seluruh 6 slot undian harus selesai sebelum menyusun file hasil.');
+  if (state.slotSelesai.length !== SLOT_URUTAN.length) {
+    throw new Error(`Seluruh ${SLOT_URUTAN.length} slot undian harus selesai sebelum menyusun file hasil.`);
   }
 
   const slotItems = state.slotSelesai.map((s) => ({
@@ -84,6 +85,7 @@ export async function bangunFileHasil(params: {
     diundiAt: s.diundiAt,
   }));
 
+  const indexAkhir = state.slotSelesai.length - 1;
   const tanpaHash: HasilUndianTanpaHash = {
     versiFormat: 1,
     periodeId,
@@ -91,7 +93,7 @@ export async function bangunFileHasil(params: {
     temaConfigHash,
     perangkat,
     dimulaiAt: state.dimulaiAt ?? state.slotSelesai[0]?.diundiAt ?? new Date().toISOString(),
-    selesaiAt: state.selesaiAt ?? state.slotSelesai[5]?.diundiAt ?? new Date().toISOString(),
+    selesaiAt: state.selesaiAt ?? state.slotSelesai[indexAkhir]?.diundiAt ?? new Date().toISOString(),
     slot: slotItems,
     catatanLokal: state.catatanLokal,
   };

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { POST as batalHasilPost } from '@/app/api/periode/[id]/hasil/batal/route';
 import { POST as hasilPost } from '@/app/api/periode/[id]/hasil/route';
 import { POST as kunciPost } from '@/app/api/periode/[id]/kunci/route';
 import { bangunFileHasil } from '@/lib/draw/hasil';
@@ -210,15 +211,11 @@ describe('Unggah dan Verifikasi Hasil Undian (Tiket 17)', () => {
     const tMulai = new Date(lockedMs + 5_000).toISOString();
     const tSlot1 = new Date(lockedMs + 10_000).toISOString();
     const tSlot2 = new Date(lockedMs + 15_000).toISOString();
-    const tSlot3 = new Date(lockedMs + 20_000).toISOString();
-    const tSlot4 = new Date(lockedMs + 25_000).toISOString();
-    const tSlot5 = new Date(lockedMs + 30_000).toISOString();
-    const tSlot6 = new Date(lockedMs + 35_000).toISOString();
-    const tSelesai = new Date(lockedMs + 40_000).toISOString();
+    const tSelesai = new Date(lockedMs + 20_000).toISOString();
 
     const state: StateUndian = {
       fase: 'SELESAI',
-      slotAktifIndex: 5,
+      slotAktifIndex: 1,
       slotSelesai: [
         {
           urutan: 1,
@@ -229,38 +226,10 @@ describe('Unggah dan Verifikasi Hasil Undian (Tiket 17)', () => {
         },
         {
           urutan: 2,
-          kode: 'W1-C1',
-          urut: pW1_1.urut,
-          pemenang: toPesertaUndian(pW1_1, 'Cadangan 1 W1', 'MUARADUA'),
-          diundiAt: tSlot2,
-        },
-        {
-          urutan: 3,
-          kode: 'W1-C2',
-          urut: pW1_2.urut,
-          pemenang: toPesertaUndian(pW1_2, 'Cadangan 2 W1', 'MUARADUA'),
-          diundiAt: tSlot3,
-        },
-        {
-          urutan: 4,
           kode: 'W2-UTAMA',
           urut: pW2_0.urut,
           pemenang: toPesertaUndian(pW2_0, 'Pemenang 2', 'BANDING'),
-          diundiAt: tSlot4,
-        },
-        {
-          urutan: 5,
-          kode: 'W2-C1',
-          urut: pW2_1.urut,
-          pemenang: toPesertaUndian(pW2_1, 'Cadangan 1 W2', 'BANDING'),
-          diundiAt: tSlot5,
-        },
-        {
-          urutan: 6,
-          kode: 'W2-C2',
-          urut: pW2_2.urut,
-          pemenang: toPesertaUndian(pW2_2, 'Cadangan 2 W2', 'BANDING'),
-          diundiAt: tSlot6,
+          diundiAt: tSlot2,
         },
       ],
       dimulaiAt: tMulai,
@@ -294,8 +263,9 @@ describe('Unggah dan Verifikasi Hasil Undian (Tiket 17)', () => {
 
     expect(body.status).toBe('DIUNDI');
     expect(body.hasilHash).toBe(fileHasil.hasilHash);
-    expect(body.slot).toHaveLength(6);
+    expect(body.slot).toHaveLength(2);
     expect(body.slot[0]?.kode).toBe('W1-UTAMA');
+    expect(body.slot[1]?.kode).toBe('W2-UTAMA');
 
     // Cek di DB
     const periodeDb = await getDb().periode.findUniqueOrThrow({
@@ -308,8 +278,8 @@ describe('Unggah dan Verifikasi Hasil Undian (Tiket 17)', () => {
     expect(periodeDb.hasilUndian?.hasilHash).toBe(fileHasil.hasilHash);
     expect(periodeDb.hasilUndian?.uploadedById).toBe(operator.id);
 
-    // Cek 6 slot
-    expect(periodeDb.slotHasil).toHaveLength(6);
+    // Cek 2 slot pemenang utama
+    expect(periodeDb.slotHasil).toHaveLength(2);
     const slot1 = periodeDb.slotHasil[0];
     const slot2 = periodeDb.slotHasil[1];
     expect(slot1).toBeDefined();
@@ -321,9 +291,9 @@ describe('Unggah dan Verifikasi Hasil Undian (Tiket 17)', () => {
     expect(slot1.status).toBe('MENANG');
     expect(slot1.penerimaAktif).toBe(true);
 
-    expect(slot2.slot).toBe('W1_C1');
-    expect(slot2.status).toBe('CADANGAN');
-    expect(slot2.penerimaAktif).toBe(false);
+    expect(slot2.slot).toBe('W2_UTAMA');
+    expect(slot2.status).toBe('MENANG');
+    expect(slot2.penerimaAktif).toBe(true);
 
     // Cek log audit
     const hasilUndianId = periodeDb.hasilUndian?.id ?? '';
@@ -364,5 +334,76 @@ describe('Unggah dan Verifikasi Hasil Undian (Tiket 17)', () => {
       where: { targetId: periode.id, aksi: 'HASIL_DITOLAK' },
     });
     expect(auditDitolak).not.toBeNull();
+
+    // ---------------------------------------------------------
+    // Pengujian Pembatalan Hasil Undian (POST /api/periode/:id/hasil/batal)
+    // ---------------------------------------------------------
+    // Operator ditolak membatalkan hasil
+    const resBatalOperator = await batalHasilPost(
+      buatRequest(`/api/periode/${periode.id}/hasil/batal`, {
+        json: { version: body.version, alasan: 'Mencoba batal oleh operator' },
+        cookie: cookieOperator,
+      }),
+      params(periode.id),
+    );
+    expect(resBatalOperator.status).toBe(403);
+
+    // Konflik version ditolak
+    const resBatalKonflik = await batalHasilPost(
+      buatRequest(`/api/periode/${periode.id}/hasil/batal`, {
+        json: { version: body.version + 99, alasan: 'Versi tidak cocok' },
+        cookie: cookieAdmin,
+      }),
+      params(periode.id),
+    );
+    expect(resBatalKonflik.status).toBe(409);
+
+    // Admin berhasil membatalkan hasil undian
+    const resBatal = await batalHasilPost(
+      buatRequest(`/api/periode/${periode.id}/hasil/batal`, {
+        json: { version: body.version, alasan: 'Pembatalan resmi untuk undi ulang' },
+        cookie: cookieAdmin,
+      }),
+      params(periode.id),
+    );
+    expect(resBatal.status).toBe(200);
+    const dataBatal = (await resBatal.json()) as { ok: boolean; status: string; version: number };
+    expect(dataBatal.ok).toBe(true);
+    expect(dataBatal.status).toBe('TERKUNCI');
+    expect(dataBatal.version).toBe(body.version + 1);
+
+    // Verifikasi di basis data: tabel hasil_undian dan slot_hasil harus kosong kembali
+    const sisaHasil = await getDb().hasilUndian.findUnique({
+      where: { periodeId: periode.id },
+    });
+    expect(sisaHasil).toBeNull();
+
+    const totalSlot = await getDb().slotHasil.count({
+      where: { periodeId: periode.id },
+    });
+    expect(totalSlot).toBe(0);
+
+    // Verifikasi status periode kembali ke TERKUNCI
+    const periodeKembali = await getDb().periode.findUniqueOrThrow({
+      where: { id: periode.id },
+    });
+    expect(periodeKembali.status).toBe('TERKUNCI');
+
+    // Cek log audit HASIL_BATAL
+    const auditBatal = await getDb().auditLog.findFirst({
+      where: { targetId: periode.id, aksi: 'HASIL_BATAL' },
+    });
+    expect(auditBatal).not.toBeNull();
+    expect((auditBatal?.payload as { alasan?: string })?.alasan).toBe('Pembatalan resmi untuk undi ulang');
+
+    // Periode yang sudah kembali TERKUNCI kini dapat menerima unggahan hasil kembali
+    const resUnggahUlang = await hasilPost(
+      buatRequest(`/api/periode/${periode.id}/hasil`, {
+        json: fileHasil,
+        cookie: cookieAdmin,
+      }),
+      params(periode.id),
+    );
+    expect(resUnggahUlang.status).toBe(200);
   });
 });

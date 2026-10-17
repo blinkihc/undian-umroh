@@ -5,6 +5,7 @@ import ExcelJS from 'exceljs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { POST as imporPost } from '@/app/api/periode/[id]/impor/route';
+import { POST as gugurPost } from '@/app/api/periode/[id]/peserta/[pesertaId]/gugur/route';
 import { GET as eksporGet } from '@/app/api/periode/[id]/peserta/ekspor-gugur/route';
 import { GET as pesertaGet } from '@/app/api/periode/[id]/peserta/route';
 import { HEADER_IMPOR } from '@/lib/domain';
@@ -18,6 +19,7 @@ import { auditUntuk, buatPengguna, type PenggunaTes } from './helpers/pengguna';
 const CSV_CAMPURAN = readFileSync(join(process.cwd(), 'tests/fixtures/impor/campuran.csv'));
 
 type Item = {
+  id: string;
   baris: number;
   nop: string;
   nopFormat: string;
@@ -262,3 +264,84 @@ describe('GET /api/periode/:id/peserta/ekspor-gugur', () => {
     expect((await unduhEkspor(cookieOperator)).status).toBe(403);
   });
 });
+
+describe('POST /api/periode/:id/peserta/:pesertaId/gugur', () => {
+  beforeAll(async () => {
+    await imporCsv(CSV_CAMPURAN);
+  });
+
+  it('Admin dapat menggugurkan peserta lolos dengan menyertakan alasan', async () => {
+    const daftar = await halaman('?status=lolos');
+    const pesertaLolos = daftar.items[0];
+    expect(pesertaLolos).toBeDefined();
+    if (!pesertaLolos) throw new Error('Peserta lolos tidak ditemukan');
+
+    const imporSebelum = await getDb().impor.findFirstOrThrow({
+      where: { periodeId: periode.id, aktif: true },
+    });
+
+    const res = await gugurPost(
+      buatRequest(`/api/periode/${periode.id}/peserta/${pesertaLolos.id}/gugur`, {
+        json: { alasan: 'Bukan warga setempat / diskualifikasi verifikasi lapangan' },
+        cookie: cookieAdmin,
+      }),
+      { params: Promise.resolve({ id: periode.id, pesertaId: pesertaLolos.id }) },
+    );
+
+    expect(res.status).toBe(200);
+    const hasil = (await res.json()) as Item;
+    expect(hasil.eligible).toBe(false);
+    expect(hasil.alasan.some((a) => a.includes('DISKUALIFIKASI_MANUAL'))).toBe(true);
+
+    const imporSesudah = await getDb().impor.findFirstOrThrow({
+      where: { periodeId: periode.id, aktif: true },
+    });
+    expect(imporSesudah.jumlahLolos).toBe(imporSebelum.jumlahLolos - 1);
+    expect(imporSesudah.jumlahGugur).toBe(imporSebelum.jumlahGugur + 1);
+
+    const jejak = await auditUntuk({ targetId: pesertaLolos.id, aksi: 'PESERTA_GUGUR' });
+    expect(jejak).toHaveLength(1);
+    expect(jejak[0]?.payload).toMatchObject({
+      alasan: 'Bukan warga setempat / diskualifikasi verifikasi lapangan',
+    });
+
+    // Menggugurkan kembali ditolak 400 AKSI_TIDAK_VALID
+    const resUlang = await gugurPost(
+      buatRequest(`/api/periode/${periode.id}/peserta/${pesertaLolos.id}/gugur`, {
+        json: { alasan: 'Coba gugurkan lagi' },
+        cookie: cookieAdmin,
+      }),
+      { params: Promise.resolve({ id: periode.id, pesertaId: pesertaLolos.id }) },
+    );
+    expect(resUlang.status).toBe(400);
+  });
+
+  it('Operator ditolak 403 saat menggugurkan peserta', async () => {
+    const daftar = await halaman('');
+    const p = daftar.items[0];
+    expect(p).toBeDefined();
+    if (!p) throw new Error('Peserta tidak ditemukan');
+
+    const res = await gugurPost(
+      buatRequest(`/api/periode/${periode.id}/peserta/${p.id}/gugur`, {
+        json: { alasan: 'Gugurkan tanpa hak' },
+        cookie: cookieOperator,
+      }),
+      { params: Promise.resolve({ id: periode.id, pesertaId: p.id }) },
+    );
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('Pencarian NOP dan Nama', () => {
+  it('dapat mencari berdasarkan awalan NOP maupun awalan Nama', async () => {
+    const cariNop = await halaman('?q=160999000000000002');
+    expect(cariNop.items.length).toBeGreaterThan(0);
+    expect(cariNop.items.every((item) => item.nop.startsWith('160999000000000002'))).toBe(true);
+
+    const cariNama = await halaman('?q=WAJIB');
+    expect(cariNama.items.length).toBeGreaterThan(0);
+    expect(cariNama.items.every((item) => item.nama.toLowerCase().startsWith('wajib'))).toBe(true);
+  });
+});
+

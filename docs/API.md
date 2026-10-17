@@ -132,6 +132,16 @@ Validation:
 
 Response `200`: objek periode lengkap.
 
+#### DELETE /api/periode/:id
+Authentication: Required (ADMIN)
+Environment: Khusus Pengembangan / Testing Lokal (`NODE_ENV !== 'production'`)
+Tujuan: Menghapus periode pengujian beserta seluruh relasi data (impor, peserta, pemetaan kecamatan wilayah, snapshot, dan hasil undian) secara tuntas.
+Validation:
+- Wajib lingkungan non-production. Di production menghasilkan `403 AKSES_DITOLAK`.
+- Eksekusi transaksi database menggunakan `SET LOCAL session_replication_role = 'replica'` untuk melewati trigger tabel immutable.
+Audit: `PERIODE_HAPUS`
+Response `200`: `{ "ok": true, "id": "clx1a2b3c", "judul": "…" }`
+
 #### POST /api/periode/:id/batal
 Authentication: Required (ADMIN)
 Request: `{ "version": 7, "alasan": "Data ekspor salah kecamatan, akan diimpor ulang di periode baru" }`
@@ -142,9 +152,9 @@ Response `200`: objek periode lengkap berstatus `DIBATALKAN` dengan `alasanBatal
 
 #### POST /api/periode/:id/impor
 Authentication: Required (ADMIN)
-Request: `multipart/form-data`, field `file` (`.csv` atau `.xlsx`, ≤ 20 MB), field `version`; field lain ditolak.
+Request: `multipart/form-data`, field `file` (`.csv` atau `.xlsx`, ≤ 100 MB), field `version`; field lain ditolak.
 Validation: periode `DRAF` (selain itu `409 PERIODE_TERKUNCI`, diperiksa sebelum versi); `version` basi → `409 CONFLICT`; header 12 kolom (PRD §6.0). Impor berhasil menaikkan `periode.version` dan mengganti seluruh peserta periode dalam satu transaksi; audit `IMPOR_BERHASIL`. Penolakan tingkat file dicatat `IMPOR_DITOLAK`.
-Error file: `413 FILE_TERLALU_BESAR`; `400 FILE_TIDAK_VALID` untuk ekstensi bukan `.csv`/`.xlsx`, ekstensi/MIME/isi tidak konsisten, file kosong/hanya header ("File tidak berisi data peserta."), lebih dari 100.000 baris, XLSX rusak atau tanpa `xl/workbook.xml`, XLSX terurai > 200 MB, atau CSV yang bukan UTF-8 maupun Windows-1252/berisi byte NUL/UTF-16 ("File tidak dapat dibaca. Simpan ulang sebagai CSV UTF-8.").
+Error file: `413 FILE_TERLALU_BESAR`; `400 FILE_TIDAK_VALID` untuk ekstensi bukan `.csv`/`.xlsx`, ekstensi/MIME/isi tidak konsisten, file kosong/hanya header ("File tidak berisi data peserta."), lebih dari 500.000 baris, XLSX rusak atau tanpa `xl/workbook.xml`, XLSX terurai > 200 MB, atau CSV yang bukan UTF-8 maupun Windows-1252/berisi byte NUL/UTF-16 ("File tidak dapat dibaca. Simpan ulang sebagai CSV UTF-8.").
 Pembacaan: CSV UTF-8 (BOM dibuang), bila gagal Windows-1252. XLSX dari sheet pertama, semua sel menjadi teks: rumus tidak dievaluasi (hasil tersimpan dipakai), sel tanggal/serial di kolom "Tanggal Lunas" ditulis `dd/mm/yyyy HH:MM:SS` (WIB), angka bulat di luar rentang aman (mis. NOP 18 digit yang tersimpan sebagai angka) ditulis notasi ilmiah sehingga `NOP_INVALID`. MIME CSV yang diterima: `text/csv`, `application/csv`, `text/plain`, `application/vnd.ms-excel`, kosong, atau `application/octet-stream`.
 Response `200`:
 ```json
@@ -202,6 +212,22 @@ Catatan: `q` berisi angka (titik, strip, dan spasi diabaikan) dicari sebagai awa
 Authentication: Required (ADMIN)
 Response: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` — kolom baris, NOP bertitik, NIK tersamar, nama, kecamatan, kelurahan, 5 nilai tanggal asli, kode alasan, pesan alasan. Nama file `daftar-gugur-<slug>-<yyyymmdd>.xlsx`. Sel teks yang diawali `=`, `+`, `-`, `@`, tab, atau CR diberi awalan `'`. Audit `EKSPOR_UNDUH` (`{ jenis: "DAFTAR_GUGUR", jumlahBaris }`).
 
+#### POST /api/periode/:id/peserta/:pesertaId/gugur
+Authentication: Required (ADMIN)
+Request:
+```json
+{ "alasan": "Bukan warga setempat / diskualifikasi verifikasi lapangan" }
+```
+Validation:
+- `alasan` wajib diisi, minimal 3 karakter, maksimal 500 karakter.
+- Periode harus berstatus `DRAF` (selain itu `409 STATUS_PERIODE_TIDAK_VALID`).
+- Peserta harus terdaftar pada periode terkait dan berstatus lolos (`eligible === true`). Jika peserta sudah berstatus gugur, menghasilkan error `400 AKSI_TIDAK_VALID`.
+Efek:
+- Mengubah status peserta menjadi `eligible: false` dan menambahkan alasan dengan format `DISKUALIFIKASI_MANUAL: <alasan>` ke array `alasan`.
+- Mengurangi counter agregat `jumlahLolos` (-1) dan menambah `jumlahGugur` (+1) pada data impor aktif.
+- Mencatat jejak audit `PESERTA_GUGUR` (`payload: { periodeId, nop, nama, alasan }`).
+Response `200`: Objek data peserta lengkap (`PesertaApi`).
+
 ### Wilayah
 
 #### GET /api/periode/:id/wilayah
@@ -240,6 +266,24 @@ Response `200`:
 ```
 Error: `422 PRASYARAT_KUNCI_BELUM_LENGKAP` dengan `details: { "kecamatanBelumDipetakan": 2, "nopGanda": 0, "wilayahKurangPeserta": [] }`.
 
+#### POST /api/periode/:id/kunci/buka
+Authentication: Required (ADMIN)
+Request:
+```json
+{ "version": 5, "alasan": "Perbaikan data peserta dan pemetaan wilayah sebelum pengundian" }
+```
+Validation:
+- `alasan` wajib diisi, minimal 5 karakter, maksimal 500 karakter.
+- Status periode wajib `TERKUNCI` (selain itu `409 STATUS_PERIODE_TIDAK_VALID`).
+- Periode belum pernah diundi / tidak memiliki hasil undian (`periode.hasilUndian === null`). Jika sudah diundi, hasil undian harus dibatalkan terlebih dahulu (`409 AKSI_TIDAK_VALID`).
+- `version` harus cocok dengan versi periode terkini (selain itu `409 CONFLICT`).
+Efek:
+- Menghapus data relasi paket unduhan (`paket_unduhan`), snapshot peserta (`snapshot_peserta`), dan snapshot (`snapshot`) di database dengan bypass transaksi terisolasi (`SET LOCAL session_replication_role = 'replica'`).
+- Menghapus berkas fisik snapshot kanonik di storage lokal.
+- Mengembalikan status periode menjadi `DRAF` dan menaikkan `version`.
+- Mencatat jejak audit `PERIODE_BUKA_KUNCI` (`payload: { alasan, snapshotHash }`).
+Response `200`: `{ "ok": true, "status": "DRAF", "version": 6 }`
+
 #### GET /api/periode/:id/paket
 Authentication: Required (ADMIN)
 Validation: status `TERKUNCI` (juga diizinkan `DIUNDI` untuk arsip).
@@ -254,6 +298,33 @@ Response `200`:
 { "status": "DIUNDI", "hasilHash": "7c21…90ab", "slot": [ { "kode": "W1-UTAMA", "nopMasked": "16.09.030.xxx.xxx-0003.0", "nama": "BUDI SANTOSO", "kecamatan": "MUARADUA" } ], "version": 7 }
 ```
 Error: `409 HASIL_SUDAH_DIUNGGAH` (`details: { "uploadedAt": "…", "uploadedBy": "operator1" }`), `422 HASIL_TIDAK_VALID` (`details: { "pemeriksaan": "WILAYAH_TIDAK_SESUAI", "slot": "W2-C1" }`).
+
+#### POST /api/periode/:id/hasil/batal
+Authentication: Required (ADMIN)
+Request: `application/json`
+```json
+{
+  "version": 7,
+  "alasan": "Kesalahan pengundian di laptop acara, undian diulang kembali"
+}
+```
+Validation:
+- status periode harus `DIUNDI`.
+- `alasan` minimal 5 karakter, maksimal 500 karakter.
+- optimistic concurrency: `version` harus cocok dengan versi periode saat ini.
+Action:
+- Menghapus baris `hasil_undian` dan `slot_hasil` terkait periode.
+- Mengembalikan status periode menjadi `TERKUNCI` dan menaikkan `version`.
+- Mencatat aksi audit `HASIL_BATAL`.
+Response `200`:
+```json
+{
+  "ok": true,
+  "status": "TERKUNCI",
+  "version": 8
+}
+```
+Error: `403 AKSES_DITOLAK`, `409 STATUS_PERIODE_TIDAK_VALID`, `409 CONFLICT` (jika `version` tidak cocok), `422 VALIDASI_GAGAL` (alasan kurang dari 5 karakter).
 
 ### Pemenang
 
@@ -586,10 +657,10 @@ Dijalankan berurutan; pemeriksaan pertama yang gagal menentukan `details.pemerik
 | 2 | `PERIODE` | `periodeId` sama dengan periode tujuan |
 | 3 | `SNAPSHOT_HASH` | `snapshotHash` = `snapshot.hash` periode |
 | 4 | `HASIL_HASH` | `hasilHash` dihitung ulang cocok |
-| 5 | `SLOT_LENGKAP` | Tepat 6 slot, `urutan` 1..6 dengan `kode` sesuai `SLOT_URUTAN` |
+| 5 | `SLOT_LENGKAP` | Lengkap sesuai `SLOT_URUTAN` (W1-UTAMA, W2-UTAMA) |
 | 6 | `PESERTA_ADA` | Setiap `urut` ada di `snapshot_peserta` |
-| 7 | `WILAYAH_SESUAI` | Wilayah peserta = wilayah slot |
-| 8 | `PESERTA_UNIK` | Tidak ada `urut` ganda |
+| 7 | `PESERTA_UNIK` | Tidak ada `urut` ganda |
+| 8 | `WILAYAH_SESUAI` | Wilayah peserta = wilayah slot |
 | 9 | `WAKTU` | `diundiAt` naik sesuai urutan, di antara `dimulaiAt` dan `selesaiAt`, dan setelah `snapshot.lockedAt` |
 | 10 | `BELUM_ADA_HASIL` | Belum ada `hasil_undian` untuk periode (cek terakhir di dalam transaksi) |
 
@@ -648,6 +719,12 @@ Default (`tema` bawaan):
 Validasi tambahan di server (setelah skema):
 - Setiap `asetId` non-null ada di tabel `aset`; `latarAsetId` berjenis `GAMBAR`; aset audio berjenis `AUDIO`.
 - Untuk output AI: server mengirim katalog aset (`id`, `jenis`, `fase`, `nama`, `deskripsi`, `durasiDetik`) dan tema basis; **tidak** mengirim data peserta.
+
+### Endpoint Aset Multimedia
+
+- `GET /api/aset`: Ambil katalog semua aset (gambar & audio).
+- `GET /api/aset/:id`: Streaming file fisik aset (gambar/audio) langsung dengan header `Content-Type` dan caching.
+- `POST /api/aset`: Unggah berkas gambar/audio kustom (`multipart/form-data`) dengan validasi MIME, ekstensi, batas ukuran, dan kalkulasi SHA-256.
 
 ---
 

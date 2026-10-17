@@ -231,7 +231,7 @@ Allowed file types:
 SVG, HTML, dan arsip lain ditolak.
 
 Maximum size:
-Impor 20 MB (XLSX: total ukuran tak terkompresi ≤ 200 MB, ≤ 100.000 baris — perlindungan zip bomb). Audio 10 MB. Gambar 5 MB (dimensi ≤ 4096×4096). Hasil 1 MB.
+Impor 100 MB (XLSX: total ukuran tak terkompresi ≤ 200 MB, ≤ 500.000 baris — perlindungan zip bomb). Audio 10 MB. Gambar 5 MB (dimensi ≤ 4096×4096). Hasil 1 MB.
 
 Validation:
 - Cek ekstensi + MIME + magic bytes; ketiganya harus konsisten.

@@ -25,3 +25,8 @@ export const LOGO_BAPENDA = {
   tinggi: 259,
   alt: 'Logo Badan Pendapatan Daerah Kabupaten Ogan Komering Ulu Selatan',
 } as const;
+
+/** Nomor WhatsApp bantuan resmi Bapenda OKU Selatan; dapat diatur lewat env NEXT_PUBLIC_WA_HELPDESK. */
+export const WA_HELPDESK_DEFAULT = '6281278902026';
+export const WA_HELPDESK = process.env.NEXT_PUBLIC_WA_HELPDESK ?? WA_HELPDESK_DEFAULT;
+

@@ -10,11 +10,13 @@ import {
   buatSlugPeriode,
   isoWib,
   periksaBatalPeriode,
+  periksaPublikasiPeriode,
   periksaUbahPeriode,
   type AlasanPeriodeDitolak,
   type BatalPeriode,
   type BuatPeriode,
   type KodeWilayah,
+  type PublikasiPeriode,
   type StatusPeriode,
   type UbahPeriode,
 } from '@/lib/domain';
@@ -439,3 +441,112 @@ export async function batalkanPeriode(masukan: {
     return keDetail(await tx.periode.findUniqueOrThrow({ where: { id }, select: PILIH_DETAIL }));
   });
 }
+
+/**
+ * Mempublikasikan hasil undian periode Diundi atau Final ke publik (PRD F10, DECISIONS 015).
+ * Status berubah menjadi DIPUBLIKASI dan melepaskan aturan satu periode aktif.
+ */
+export async function publikasikanPeriode(masukan: {
+  aktor: PenggunaSesi;
+  id: string;
+  data: PublikasiPeriode;
+  konteks?: KonteksRequest;
+}): Promise<PeriodeDetail> {
+  const { aktor, id, data, konteks } = masukan;
+  return getDb().$transaction(async (tx) => {
+    const lama = await tx.periode.findUnique({ where: { id }, select: PILIH_DETAIL });
+    if (lama === null) {
+      throw galatTidakDitemukan();
+    }
+    const aturan = periksaPublikasiPeriode(lama.status);
+    if (!aturan.ok) {
+      throw new AppError('AKSI_TIDAK_VALID', 400, aturan.error, {
+        status: lama.status,
+      });
+    }
+    if (lama.version !== data.version) {
+      throw galatVersiBasi(lama.version);
+    }
+    const sekarang = new Date();
+    const hasil = await tx.periode.updateMany({
+      where: { id, version: data.version, status: lama.status },
+      data: {
+        status: 'DIPUBLIKASI',
+        publishedAt: sekarang,
+        version: { increment: 1 },
+      },
+    });
+    if (hasil.count === 0) {
+      throw galatVersiBasi(lama.version);
+    }
+    await audit(tx, {
+      aksi: 'PERIODE_PUBLIKASI',
+      aktor,
+      targetTipe: 'periode',
+      targetId: id,
+      payload: { judul: lama.judul, statusSebelumnya: lama.status },
+      konteks,
+    });
+    return keDetail(await tx.periode.findUniqueOrThrow({ where: { id }, select: PILIH_DETAIL }));
+  });
+}
+
+/**
+ * Menghapus periode dan seluruh relasinya secara tuntas.
+ * HANYA aktif dan diizinkan pada stage pengembangan lokal (NODE_ENV !== 'production').
+ * Di production, fungsi ini secara keras menolak dan melempar galat 403 AKSES_DITOLAK.
+ */
+export async function hapusPeriodeLokal(masukan: {
+  aktor: PenggunaSesi;
+  id: string;
+  konteks: KonteksRequest;
+}): Promise<{ ok: true; id: string; judul: string }> {
+  if (process.env.NODE_ENV === 'production') {
+    throw new AppError(
+      'AKSES_DITOLAK',
+      403,
+      'Aksi hapus periode hanya diizinkan pada lingkungan pengembangan lokal.',
+    );
+  }
+  const { aktor, id, konteks } = masukan;
+  return getDb().$transaction(async (tx) => {
+    const periode = await tx.periode.findUnique({
+      where: { id },
+      select: { id: true, judul: true, status: true },
+    });
+    if (periode === null) {
+      throw galatTidakDitemukan();
+    }
+
+    // Bypass trigger penolakan delete di tabel immutable pada PostgreSQL
+    await tx.$executeRawUnsafe("SET LOCAL session_replication_role = 'replica';");
+
+    // Hapus seluruh relasi anak berurutan
+    await tx.$executeRaw`DELETE FROM "riwayat_status_pemenang" WHERE "slot_hasil_id" IN (SELECT "id" FROM "slot_hasil" WHERE "periode_id" = ${id});`;
+    await tx.$executeRaw`DELETE FROM "slot_hasil" WHERE "periode_id" = ${id};`;
+    await tx.$executeRaw`DELETE FROM "hasil_undian" WHERE "periode_id" = ${id};`;
+    await tx.$executeRaw`DELETE FROM "berita_acara" WHERE "periode_id" = ${id};`;
+    await tx.$executeRaw`DELETE FROM "paket_unduhan" WHERE "periode_id" = ${id};`;
+    await tx.$executeRaw`DELETE FROM "snapshot_peserta" WHERE "snapshot_id" IN (SELECT "id" FROM "snapshot" WHERE "periode_id" = ${id});`;
+    await tx.$executeRaw`DELETE FROM "snapshot" WHERE "periode_id" = ${id};`;
+    await tx.$executeRaw`DELETE FROM "peserta" WHERE "periode_id" = ${id};`;
+    await tx.$executeRaw`DELETE FROM "impor" WHERE "periode_id" = ${id};`;
+    await tx.$executeRaw`DELETE FROM "kecamatan_wilayah" WHERE "periode_id" = ${id};`;
+    await tx.$executeRaw`DELETE FROM "wilayah" WHERE "periode_id" = ${id};`;
+    await tx.$executeRaw`DELETE FROM "periode" WHERE "id" = ${id};`;
+
+    await tx.$executeRawUnsafe("SET LOCAL session_replication_role = 'origin';");
+
+    await audit(tx, {
+      aksi: 'PERIODE_HAPUS',
+      aktor,
+      targetTipe: 'periode',
+      targetId: id,
+      payload: { judul: periode.judul, status: periode.status, stage: 'lokal' },
+      konteks,
+    });
+
+    return { ok: true, id, judul: periode.judul };
+  });
+}
+

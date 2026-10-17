@@ -40,7 +40,7 @@ export function FormFilterPeserta({
     >
       <div className="md:col-span-3 xl:col-span-2">
         <Field
-          label="Cari NOP atau awalan nama"
+          label="Cari NOP atau Nama"
           name="q"
           type="search"
           autoComplete="off"

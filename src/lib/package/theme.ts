@@ -32,6 +32,7 @@ export const ThemeConfigSchema = z
             asetId: z.string().nullable(),
             volumePersen: z.number().int().min(0).max(100),
             loop: z.literal(true),
+            preset: z.string().default('bawaan'),
           })
           .strict(),
         mengacak: z
@@ -39,6 +40,7 @@ export const ThemeConfigSchema = z
             asetId: z.string().nullable(),
             volumePersen: z.number().int().min(0).max(100),
             loop: z.boolean(),
+            preset: z.string().default('bawaan'),
           })
           .strict(),
         pemenang: z
@@ -46,12 +48,14 @@ export const ThemeConfigSchema = z
             asetId: z.string().nullable(),
             volumePersen: z.number().int().min(0).max(100),
             loop: z.literal(false),
+            preset: z.string().default('bawaan'),
           })
           .strict(),
       })
       .strict(),
     teks: z
       .object({
+        judulAtas: z.string().max(120).default('GEBYAR UNDIAN UMROH PBB-P2'),
         ucapanPemenang: z.string().min(3).max(80),
         subjudul: z.string().max(120).nullable(),
       })
@@ -79,11 +83,12 @@ export const TEMA_DEFAULT: ThemeConfig = {
     confetti: true,
   },
   audio: {
-    menunggu: { asetId: null, volumePersen: 40, loop: true },
-    mengacak: { asetId: null, volumePersen: 70, loop: true },
-    pemenang: { asetId: null, volumePersen: 90, loop: false },
+    menunggu: { asetId: null, volumePersen: 40, loop: true, preset: 'bawaan' },
+    mengacak: { asetId: null, volumePersen: 70, loop: true, preset: 'bawaan' },
+    pemenang: { asetId: null, volumePersen: 90, loop: false, preset: 'bawaan' },
   },
   teks: {
+    judulAtas: 'GEBYAR UNDIAN UMROH PBB-P2',
     ucapanPemenang: 'Selamat kepada Pemenang Umroh',
     subjudul: 'Pajak Daerah untuk Pembangunan OKU Selatan',
   },

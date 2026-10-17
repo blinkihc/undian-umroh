@@ -16,8 +16,8 @@ export function pilihPemenang(
   pemenangTerpilihUrut: Set<number>,
   generatorAcak: (min: number, max: number) => number = secureRandomInt,
 ): PesertaUndian {
-  if (pesertaWilayah.length < 3) {
-    throw new Error('Pool wilayah kurang dari 3 peserta.');
+  if (pesertaWilayah.length < 1) {
+    throw new Error('Pool wilayah kosong.');
   }
 
   const kandidat = pesertaWilayah.filter((p) => !pemenangTerpilihUrut.has(p.urut));
@@ -88,7 +88,7 @@ export function simpanPemenangSlot(
   };
 
   const slotSelesaiBaru = [...state.slotSelesai, hasilSlot];
-  const apakahSlotTerakhir = slotSelesaiBaru.length === 6;
+  const apakahSlotTerakhir = slotSelesaiBaru.length === SLOT_URUTAN.length;
 
   return {
     ...state,
@@ -106,7 +106,7 @@ export function lanjutSlotBerikutnya(state: StateUndian): StateUndian {
     return state;
   }
 
-  if (state.slotSelesai.length >= 6) {
+  if (state.slotSelesai.length >= SLOT_URUTAN.length) {
     return {
       ...state,
       fase: 'SELESAI',
@@ -119,3 +119,37 @@ export function lanjutSlotBerikutnya(state: StateUndian): StateUndian {
     fase: 'MENUNGGU',
   };
 }
+
+/**
+ * Transisi: Operator membatalkan putaran saat fase MENGACAK karena salah pencet.
+ * Mengembalikan fase ke MENUNGGU tanpa menentukan pemenang.
+ */
+export function batalkanPutaran(state: StateUndian): StateUndian {
+  if (state.fase !== 'MENGACAK') {
+    return state;
+  }
+  return {
+    ...state,
+    fase: 'MENUNGGU',
+    dimulaiAt: state.slotSelesai.length === 0 ? null : state.dimulaiAt,
+  };
+}
+
+/**
+ * Transisi: Operator membatalkan pemenang pada slot aktif (fase PEMENANG)
+ * karena salah pencet tombol Berhenti sebelum waktunya.
+ * Menghapus pemenang slot terakhir dan mengembalikan fase ke MENUNGGU untuk slot yang sama.
+ */
+export function batalkanPemenangSlot(state: StateUndian): StateUndian {
+  if (state.fase !== 'PEMENANG' || state.slotSelesai.length === 0) {
+    return state;
+  }
+  const slotSelesaiBaru = state.slotSelesai.slice(0, -1);
+  return {
+    ...state,
+    fase: 'MENUNGGU',
+    slotSelesai: slotSelesaiBaru,
+    selesaiAt: null,
+  };
+}
+

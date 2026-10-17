@@ -339,3 +339,97 @@ export async function unggahDanVerifikasiHasil(
     version: hasilTransaksi.version,
   };
 }
+
+export async function batalkanHasilUndian(
+  periodeId: string,
+  masukan: { alasan: string; version: number },
+  aktor: PenggunaSesi,
+  konteks?: KonteksRequest,
+): Promise<{ ok: true; status: 'TERKUNCI'; version: number }> {
+  const db = getDb();
+
+  const periode = await db.periode.findUnique({
+    where: { id: periodeId },
+    include: {
+      hasilUndian: true,
+    },
+  });
+
+  if (periode === null) {
+    throw new AppError('TIDAK_DITEMUKAN', 404, 'Periode tidak ditemukan.');
+  }
+
+  if (periode.status !== 'DIUNDI') {
+    throw new AppError(
+      'STATUS_PERIODE_TIDAK_VALID',
+      409,
+      'Hanya hasil undian periode berstatus Diundi yang dapat dibatalkan.',
+      { status: periode.status },
+    );
+  }
+
+  if (periode.hasilUndian === null) {
+    throw new AppError('HASIL_BELUM_DIUNGGAH', 409, 'Periode ini belum memiliki hasil undian.');
+  }
+
+  if (periode.version !== masukan.version) {
+    throw new AppError(
+      'CONFLICT',
+      409,
+      'Data periode telah diubah oleh pengguna lain. Silakan muat ulang halaman.',
+      { serverVersion: periode.version },
+    );
+  }
+
+  const hasilHash = periode.hasilUndian.hasilHash;
+
+  const hasilTx = await db.$transaction(async (tx) => {
+    const terkini = await tx.periode.findUniqueOrThrow({
+      where: { id: periodeId },
+      select: { id: true, status: true, version: true },
+    });
+
+    if (terkini.status !== 'DIUNDI') {
+      throw new AppError('STATUS_PERIODE_TIDAK_VALID', 409, 'Status periode telah berubah.');
+    }
+
+    if (terkini.version !== masukan.version) {
+      throw new AppError('CONFLICT', 409, 'Konflik versi data periode.');
+    }
+
+    await tx.$executeRawUnsafe("SET LOCAL session_replication_role = 'replica';");
+    await tx.$executeRaw`DELETE FROM "riwayat_status_pemenang" WHERE "slot_hasil_id" IN (SELECT "id" FROM "slot_hasil" WHERE "periode_id" = ${periodeId});`;
+    await tx.$executeRaw`DELETE FROM "slot_hasil" WHERE "periode_id" = ${periodeId};`;
+    await tx.$executeRaw`DELETE FROM "hasil_undian" WHERE "periode_id" = ${periodeId};`;
+    await tx.$executeRawUnsafe("SET LOCAL session_replication_role = 'origin';");
+
+    const updated = await tx.periode.update({
+      where: { id: periodeId },
+      data: {
+        status: 'TERKUNCI',
+        version: { increment: 1 },
+      },
+      select: { version: true },
+    });
+
+    await audit(tx, {
+      aksi: 'HASIL_BATAL',
+      targetTipe: 'periode',
+      targetId: periodeId,
+      payload: {
+        alasan: masukan.alasan,
+        hasilHash,
+      },
+      konteks,
+      aktor,
+    });
+
+    return { version: updated.version };
+  });
+
+  return {
+    ok: true,
+    status: 'TERKUNCI',
+    version: hasilTx.version,
+  };
+}

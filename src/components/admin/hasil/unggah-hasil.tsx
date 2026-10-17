@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useTransition, type ChangeEvent, type ReactElement } from 'react';
+import { useRouter } from 'next/navigation';
+import { useState, useTransition, type ChangeEvent, type FormEvent, type ReactElement } from 'react';
 
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { TextareaField } from '@/components/ui/textarea-field';
 import { formatHashRingkas } from '@/lib/package/hash';
 
 export interface DetailPemeriksaan {
@@ -19,10 +21,10 @@ const DAFTAR_PEMERIKSAAN_AWAL: DetailPemeriksaan[] = [
   { id: 'PERIODE', label: '2. Periode undian sesuai target', selesai: false },
   { id: 'SNAPSHOT_HASH', label: '3. Hash snapshot data peserta cocok', selesai: false },
   { id: 'HASIL_HASH', label: '4. Integritas hash file hasil cocok', selesai: false },
-  { id: 'SLOT_LENGKAP', label: '5. Kelengkapan 6 slot undian (W1 & W2)', selesai: false },
+  { id: 'SLOT_LENGKAP', label: '5. Kelengkapan slot undian (W1 & W2)', selesai: false },
   { id: 'PESERTA_ADA', label: '6. Peserta terdaftar di data terkunci', selesai: false },
-  { id: 'WILAYAH_SESUAI', label: '7. Wilayah peserta sesuai slot undian', selesai: false },
-  { id: 'PESERTA_UNIK', label: '8. Setiap slot dimenangkan peserta berbeda', selesai: false },
+  { id: 'PESERTA_UNIK', label: '7. Setiap slot dimenangkan peserta berbeda', selesai: false },
+  { id: 'WILAYAH_SESUAI', label: '8. Wilayah peserta sesuai slot undian', selesai: false },
   { id: 'WAKTU', label: '9. Urutan waktu pengundian valid', selesai: false },
   { id: 'BELUM_ADA_HASIL', label: '10. Belum pernah ada hasil yang diunggah', selesai: false },
 ];
@@ -44,22 +46,66 @@ interface ResponsSukses {
 interface UnggahHasilProps {
   periodeId: string;
   statusPeriode: string;
+  version?: number;
   isAdmin?: boolean;
 }
 
 export function UnggahHasil({
   periodeId,
   statusPeriode,
+  version = 1,
   isAdmin = true,
 }: UnggahHasilProps): ReactElement {
+  const router = useRouter();
   const [fileTerpilih, setFileTerpilih] = useState<File | null>(null);
   const [errorPesan, setErrorPesan] = useState<string | null>(null);
   const [suksesData, setSuksesData] = useState<ResponsSukses | null>(null);
   const [daftarCek, setDaftarCek] = useState<DetailPemeriksaan[]>(DAFTAR_PEMERIKSAAN_AWAL);
   const [sedangKirim, startTransition] = useTransition();
 
+  const [tampilFormBatal, setTampilFormBatal] = useState(false);
+  const [alasanBatal, setAlasanBatal] = useState('');
+  const [galatBatal, setGalatBatal] = useState<string | null>(null);
+  const [sedangBatal, setSedangBatal] = useState(false);
+
   const periodeTerkunci = statusPeriode === 'TERKUNCI';
   const periodeSudahDiundi = statusPeriode === 'DIUNDI';
+
+  async function handleBatalHasil(e: FormEvent): Promise<void> {
+    e.preventDefault();
+    if (!alasanBatal.trim() || alasanBatal.trim().length < 5) {
+      setGalatBatal('Alasan pembatalan minimal 5 karakter.');
+      return;
+    }
+
+    setGalatBatal(null);
+    setSedangBatal(true);
+    try {
+      const res = await fetch(`/api/periode/${periodeId}/hasil/batal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          version,
+          alasan: alasanBatal.trim(),
+        }),
+      });
+
+      const data = (await res.json()) as { message?: string };
+      if (!res.ok) {
+        setGalatBatal(data.message ?? 'Gagal membatalkan hasil undian.');
+        setSedangBatal(false);
+        return;
+      }
+
+      setTampilFormBatal(false);
+      setAlasanBatal('');
+      router.refresh();
+    } catch {
+      setGalatBatal('Terjadi gangguan jaringan.');
+    } finally {
+      setSedangBatal(false);
+    }
+  }
 
   function handlePilihFile(e: ChangeEvent<HTMLInputElement>): void {
     const file = e.target.files?.[0];
@@ -134,9 +180,86 @@ export function UnggahHasil({
       )}
 
       {periodeSudahDiundi && !suksesData && (
-        <Alert jenis="info" judul="Hasil sudah pernah diunggah">
-          Periode ini telah memiliki hasil undian yang terverifikasi dan berstatus Diundi.
-        </Alert>
+        <div className="space-y-4">
+          <Alert jenis="info" judul="Hasil sudah pernah diunggah">
+            Periode ini telah memiliki hasil undian yang terverifikasi dan berstatus Diundi.
+          </Alert>
+
+          {isAdmin && (
+            <div className="rounded-lg border border-danger-300 bg-neutral-0 p-6 shadow-xs">
+              <h3 className="font-heading text-base font-semibold text-danger-700">
+                Batalkan Hasil Undian
+              </h3>
+              <p className="mt-1 text-sm text-neutral-600">
+                Jika ingin mengulang undian atau membatalkan hasil yang salah diunggah, Anda dapat
+                membatalkan hasil ini. Status periode akan kembali menjadi Terkunci dan paket undian
+                tetap tersimpan tanpa perlu diunduh ulang.
+              </p>
+
+              {galatBatal && (
+                <div className="mt-4">
+                  <Alert jenis="galat" judul="Gagal Membatalkan">
+                    {galatBatal}
+                  </Alert>
+                </div>
+              )}
+
+              {tampilFormBatal ? (
+                <form
+                  onSubmit={(e) => {
+                    void handleBatalHasil(e);
+                  }}
+                  className="mt-4 space-y-4"
+                >
+                  <TextareaField
+                    label="Alasan Pembatalan (minimal 5 karakter)"
+                    name="alasan"
+                    required
+                    value={alasanBatal}
+                    onChange={(e) => {
+                      setAlasanBatal(e.target.value);
+                    }}
+                    placeholder="Contoh: Pengundian ulang perlu dilakukan pada acara"
+                  />
+                  <div className="flex gap-3">
+                    <Button
+                      type="submit"
+                      varian="danger"
+                      disabled={sedangBatal}
+                      memuat={sedangBatal}
+                      labelMemuat="Membatalkan..."
+                    >
+                      Ya, Batalkan Hasil
+                    </Button>
+                    <Button
+                      type="button"
+                      varian="secondary"
+                      disabled={sedangBatal}
+                      onClick={() => {
+                        setTampilFormBatal(false);
+                        setGalatBatal(null);
+                      }}
+                    >
+                      Batal
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="mt-4">
+                  <Button
+                    varian="danger"
+                    onClick={() => {
+                      setTampilFormBatal(true);
+                      setGalatBatal(null);
+                    }}
+                  >
+                    Batalkan Hasil Undian
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {errorPesan && (

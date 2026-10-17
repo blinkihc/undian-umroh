@@ -36,7 +36,9 @@ type KunciDataProps = {
 export function KunciData({ periodeId, prasyarat }: KunciDataProps): ReactElement {
   const router = useRouter();
   const [bukaDialog, setBukaDialog] = useState(false);
+  const [bukaKunciDialog, setBukaKunciDialog] = useState(false);
   const [konfirmasiJudul, setKonfirmasiJudul] = useState('');
+  const [alasanBukaKunci, setAlasanBukaKunci] = useState('');
   const [memproses, setMemproses] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
   const [tersalin, setTersalin] = useState(false);
@@ -73,6 +75,29 @@ export function KunciData({ periodeId, prasyarat }: KunciDataProps): ReactElemen
         return;
       }
       setBukaDialog(false);
+      router.refresh();
+    } catch {
+      setGalat('Terjadi kesalahan jaringan.');
+    } finally {
+      setMemproses(false);
+    }
+  }
+
+  async function jalankanBukaKunci(): Promise<void> {
+    setMemproses(true);
+    setGalat(null);
+    try {
+      const respons = await fetch(`/api/periode/${periodeId}/kunci/buka`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ version, alasan: alasanBukaKunci }),
+      });
+      const data = (await respons.json()) as { error?: { message: string } };
+      if (!respons.ok) {
+        setGalat(data.error?.message ?? 'Gagal membuka kunci periode.');
+        return;
+      }
+      setBukaKunciDialog(false);
       router.refresh();
     } catch {
       setGalat('Terjadi kesalahan jaringan.');
@@ -145,7 +170,18 @@ export function KunciData({ periodeId, prasyarat }: KunciDataProps): ReactElemen
             <p className="mt-1 font-mono text-xs break-all text-neutral-500">{snapshot.hash}</p>
           </div>
 
-          <div className="mt-6 flex justify-end">
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+            <Button
+              varian="secondary"
+              onClick={() => {
+                setGalat(null);
+                setAlasanBukaKunci('');
+                setBukaKunciDialog(true);
+              }}
+              className="border-danger-300 text-danger-700 hover:bg-danger-50"
+            >
+              Buka Kunci Data
+            </Button>
             <Link
               href={`/admin/periode/${periodeId}/paket`}
               className="inline-flex h-11 items-center justify-center rounded-md bg-primary-700 px-5 text-sm font-medium text-neutral-0 hover:bg-primary-800 focus:outline-none focus:ring-2 focus:ring-primary-700 focus:ring-offset-2"
@@ -154,6 +190,53 @@ export function KunciData({ periodeId, prasyarat }: KunciDataProps): ReactElemen
             </Link>
           </div>
         </div>
+
+        {bukaKunciDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/50 p-4">
+            <div className="w-full max-w-md rounded-lg bg-neutral-0 p-6 shadow-xl">
+              <h3 className="text-lg font-bold text-neutral-900">Konfirmasi Buka Kunci Data</h3>
+              <p className="mt-2 text-sm text-neutral-600">
+                Membuka kunci data akan mengembalikan status periode ke <strong>DRAF</strong>.
+                Snapshot dan paket unduhan yang sudah dibuat akan dihapus, dan harus dibuat ulang setelah data dikunci kembali.
+              </p>
+              <label className="mt-4 block text-xs font-semibold text-neutral-700">
+                Alasan buka kunci (minimal 5 karakter):
+              </label>
+              <textarea
+                value={alasanBukaKunci}
+                onChange={(e) => {
+                  setAlasanBukaKunci(e.target.value);
+                }}
+                rows={3}
+                placeholder="Contoh: Perbaikan pemetaan kecamatan atau data peserta yang keliru"
+                className="mt-1.5 w-full rounded-md border border-neutral-300 p-2.5 text-sm focus:border-primary-500 focus:outline-none"
+              />
+              {galat && <p className="mt-2 text-xs font-medium text-danger-600">{galat}</p>}
+              <div className="mt-6 flex justify-end gap-3">
+                <Button
+                  varian="secondary"
+                  onClick={() => {
+                    setBukaKunciDialog(false);
+                  }}
+                  disabled={memproses}
+                >
+                  Batal
+                </Button>
+                <Button
+                  varian="danger"
+                  onClick={() => {
+                    void jalankanBukaKunci();
+                  }}
+                  disabled={alasanBukaKunci.trim().length < 5 || memproses}
+                  memuat={memproses}
+                  labelMemuat="Membuka Kunci..."
+                >
+                  Buka Kunci Sekarang
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

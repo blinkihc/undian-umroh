@@ -26,8 +26,8 @@ async function main(): Promise<void> {
   const rows = Number(values.rows);
   const seed = Number(values.seed);
   const format = values.format;
-  if (!Number.isInteger(rows) || rows < 1 || rows > 100_000) {
-    throw new Error('--rows harus bilangan bulat 1–100000.');
+  if (!Number.isInteger(rows) || rows < 1 || rows > 500_000) {
+    throw new Error('--rows harus bilangan bulat 1–500000.');
   }
   if (format !== 'csv' && format !== 'xlsx') {
     throw new Error('--format harus csv atau xlsx.');

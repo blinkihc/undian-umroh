@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { POST as batalPost } from '@/app/api/periode/[id]/batal/route';
 import { POST as imporPost } from '@/app/api/periode/[id]/impor/route';
+import { POST as bukaKunciPost } from '@/app/api/periode/[id]/kunci/buka/route';
 import { GET as kunciGet, POST as kunciPost } from '@/app/api/periode/[id]/kunci/route';
 import { PATCH } from '@/app/api/periode/[id]/route';
 import { PUT as wilayahPut } from '@/app/api/periode/[id]/wilayah/route';
@@ -343,5 +344,100 @@ describe('Kunci Snapshot Peserta (Tiket 10)', () => {
     expect(resBatal.status).toBe(200);
     const batalData = (await resBatal.json()) as { status: string };
     expect(batalData.status).toBe('DIBATALKAN');
+  });
+
+  it('admin dapat membuka kunci periode yang terkunci kembali ke DRAF', async () => {
+    const periode = await buatPeriodeTes();
+    const impor = await getDb().impor.create({
+      data: {
+        periodeId: periode.id,
+        namaFile: 'uji.csv',
+        fileSha256: 'a'.repeat(64),
+        totalBaris: 6,
+        jumlahLolos: 6,
+        jumlahGugur: 0,
+        ringkasan: {
+          gugurPerAlasan: {},
+          nikTidakValid: 0,
+          nopGanda: 0,
+          lolosPerKecamatan: { MUARADUA: 3, BANDANG: 3 },
+        },
+        importedById: admin.id,
+      },
+    });
+
+    const w1 = await getDb().wilayah.findFirstOrThrow({
+      where: { periodeId: periode.id, kode: 'W1' },
+    });
+    const w2 = await getDb().wilayah.findFirstOrThrow({
+      where: { periodeId: periode.id, kode: 'W2' },
+    });
+
+    await getDb().kecamatanWilayah.createMany({
+      data: [
+        { periodeId: periode.id, kecamatan: 'MUARADUA', wilayahId: w1.id },
+        { periodeId: periode.id, kecamatan: 'BANDANG', wilayahId: w2.id },
+      ],
+    });
+
+    for (let i = 1; i <= 6; i++) {
+      const kec = i <= 3 ? 'MUARADUA' : 'BANDANG';
+      await getDb().peserta.create({
+        data: {
+          periodeId: periode.id,
+          imporId: impor.id,
+          baris: i + 1,
+          nop: `16091234567890123${i.toString()}`,
+          nikMasked: `1609xxxxxxxx000${i.toString()}`,
+          nikValid: true,
+          nama: `Peserta ${i.toString()}`,
+          alamatWp: 'Alamat WP',
+          alamatOp: 'Alamat OP',
+          kecamatanRaw: kec,
+          kecamatan: kec,
+          kelurahan: 'KEL',
+          eligible: true,
+          alasan: [],
+          lunasRaw: {},
+        },
+      });
+    }
+
+    const resKunci = await kunciPost(
+      buatRequest(`/api/periode/${periode.id}/kunci`, {
+        json: { version: periode.version, konfirmasiJudul: periode.judul },
+        cookie: cookieAdmin,
+      }),
+      params(periode.id),
+    );
+    expect(resKunci.status).toBe(200);
+    const hasil = (await resKunci.json()) as { version: number };
+
+    const resBuka = await bukaKunciPost(
+      buatRequest(`/api/periode/${periode.id}/kunci/buka`, {
+        json: {
+          version: hasil.version,
+          alasan: 'Alasan buka kunci untuk perbaikan data peserta',
+        },
+        cookie: cookieAdmin,
+      }),
+      params(periode.id),
+    );
+    expect(resBuka.status).toBe(200);
+    const dataBuka = (await resBuka.json()) as { ok: boolean; status: string; version: number };
+    expect(dataBuka.ok).toBe(true);
+    expect(dataBuka.status).toBe('DRAF');
+    expect(dataBuka.version).toBe(hasil.version + 1);
+
+    const periodeDb = await getDb().periode.findUniqueOrThrow({ where: { id: periode.id } });
+    expect(periodeDb.status).toBe('DRAF');
+
+    const snapshotDb = await getDb().snapshot.findUnique({ where: { periodeId: periode.id } });
+    expect(snapshotDb).toBeNull();
+
+    const auditDb = await getDb().auditLog.findFirst({
+      where: { targetId: periode.id, aksi: 'PERIODE_BUKA_KUNCI' },
+    });
+    expect(auditDb).not.toBeNull();
   });
 });

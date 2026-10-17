@@ -1,0 +1,15 @@
+.git
+.github
+.next
+node_modules
+npm-debug.log
+yarn-error.log
+.env*
+!.env.example
+.storage
+storage
+playwright-report
+test-results
+coverage
+.scratch
+*.md

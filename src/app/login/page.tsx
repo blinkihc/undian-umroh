@@ -32,7 +32,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps): Promi
   return (
     <KartuAutentikasi
       judul="Masuk"
-      deskripsi={`Panel Admin dan Operator ${NAMA_APLIKASI}. Gunakan akun yang diberikan Bapenda.`}
+      deskripsi={`Panel Admin Bapenda.`}
     >
       <FormLogin callbackUrl={tujuan} />
     </KartuAutentikasi>

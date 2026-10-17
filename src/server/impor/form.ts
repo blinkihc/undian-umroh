@@ -4,13 +4,13 @@ import { z } from 'zod';
 
 import { AppError } from '@/server/errors';
 
-/** Batas file impor 20 MB (PRD F1, SECURITY §8). */
-export const UKURAN_IMPOR_MAKS = 20 * 1024 * 1024;
+/** Batas file impor 100 MB (PRD F1, SECURITY §8). */
+export const UKURAN_IMPOR_MAKS = 100 * 1024 * 1024;
 
 /** Kelonggaran untuk pembungkus multipart (batas, header bagian, field `version`). */
 const KELONGGARAN_MULTIPART = 64 * 1024;
 
-const PESAN_TERLALU_BESAR = 'File harus .csv atau .xlsx, maksimal 20 MB.';
+const PESAN_TERLALU_BESAR = 'File harus .csv atau .xlsx, maksimal 100 MB.';
 
 const VersionSchema = z.coerce.number().int().min(1);
 

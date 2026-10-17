@@ -14,6 +14,7 @@ const HEADER_KEAMANAN = [
 ] as const;
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   reactStrictMode: true,
   // Tidak membocorkan teknologi server lewat header X-Powered-By.
   poweredByHeader: false,
