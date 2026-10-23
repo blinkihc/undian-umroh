@@ -340,19 +340,41 @@ Response:
       "statusWilayah": "ADA_PENERIMA",
       "slot": [
         {
-          "kode": "W1-UTAMA", "status": "GUGUR", "penerimaAktif": false,
-          "alasanGugur": "TIDAK_DAPAT_DIHUBUNGI", "catatan": "Tidak merespons 3×24 jam",
+          "kode": "W1-UTAMA", "status": "TERVERIFIKASI", "penerimaAktif": true,
+          "fotoDokumentasi": ["clx_foto_1", "clx_foto_2"],
+          "diserahkanAt": "2026-08-17T10:30:00+07:00",
+          "diserahkanCatatan": "Diserahkan simbolis oleh Bupati OKU Selatan di Pendopo",
           "peserta": { "nopFormat": "16.09.030.003.003-0003.0", "nikMasked": "1609xxxxxxxx0012", "nama": "…", "alamatWp": "…", "alamatOp": "…", "kecamatan": "…", "kelurahan": "…", "lunas": { "2022": "…" } },
-          "version": 2
+          "version": 3
         },
-        { "kode": "W1-C1", "status": "MENANG", "penerimaAktif": true, "version": 2 },
-        { "kode": "W1-C2", "status": "CADANGAN", "penerimaAktif": false, "version": 1 }
+        { "kode": "W1-C1", "status": "CADANGAN", "penerimaAktif": false, "fotoDokumentasi": [], "version": 2 },
+        { "kode": "W1-C2", "status": "CADANGAN", "penerimaAktif": false, "fotoDokumentasi": [], "version": 1 }
       ]
     }
   ]
 }
 ```
 `statusWilayah`: `ADA_PENERIMA` | `TERVERIFIKASI` | `PERLU_KEPUTUSAN`.
+
+#### POST /api/periode/:id/pemenang/:slot/foto
+Authentication: Required (ADMIN)
+Content-Type: `multipart/form-data` (file: `image/jpeg|image/png|image/webp`, maks. 5 MB, opsi `catatan`) atau `application/json` (`fileBase64`, `nama`, opsi `catatan`).
+Validation: maks. 3 foto per pemenang; magic bytes tervalidasi.
+Efek: file disimpan di storage aset, dicatat di tabel `aset` dan `slot_hasil.foto_dokumentasi`, `diserahkan_at` diset ke waktu saat ini jika sebelumnya kosong.
+Audit: `PEMENANG_DOKUMENTASI_SIMBOLIS`.
+Response `200`: `{ "sukses": true, "fotoId": "clx...", "fotoDokumentasi": [...], "diserahkanAt": "...", "diserahkanCatatan": "..." }`.
+
+#### PATCH /api/periode/:id/pemenang/:slot/foto
+Authentication: Required (ADMIN)
+Request: `{ "catatan": "Keterangan serah terima simbolis" }`
+Validation: catatan maks. 500 karakter.
+Response `200`: `{ "sukses": true, "diserahkanCatatan": "..." }`.
+
+#### DELETE /api/periode/:id/pemenang/:slot/foto/:fotoId
+Authentication: Required (ADMIN)
+Efek: menghapus ID aset dari `slot_hasil.foto_dokumentasi`. Jika foto dokumentasi menjadi kosong, `diserahkan_at` di-reset ke `null`.
+Audit: `PEMENANG_HAPUS_FOTO`.
+Response `200`: `{ "sukses": true, "fotoDokumentasi": [...], "diserahkanAt": null, "diserahkanCatatan": "..." }`.
 
 #### POST /api/periode/:id/pemenang/:slot/verifikasi
 Authentication: Required (ADMIN)
@@ -490,6 +512,9 @@ Response (periode terakhir berstatus `DIPUBLIKASI`):
       "kode": "W1", "nama": "Wilayah 1", "statusWilayah": "TERVERIFIKASI",
       "slot": [
         { "kode": "W1-UTAMA", "label": "Pemenang Utama", "status": "TERVERIFIKASI", "penerimaAktif": true,
+          "fotoDokumentasi": ["clx_foto_1", "clx_foto_2"],
+          "diserahkanAt": "2026-08-17 10:30 WIB",
+          "diserahkanCatatan": "Penyerahan simbolis oleh Bupati OKU Selatan",
           "peserta": { "nopMasked": "16.09.030.xxx.xxx-0003.0", "nikMasked": "1609xxxxxxxx0012", "nama": "…", "alamatWp": "…", "alamatOp": "…", "kecamatan": "…", "kelurahan": "…", "lunas": { "2022": "2022-06-29", "2023": "…", "2024": "…", "2025": "…", "2026": "…" } } }
       ]
     }

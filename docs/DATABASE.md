@@ -268,6 +268,9 @@ Columns:
 | `status_changed_by_id` | text FK | nullable |
 | `status_changed_at` | timestamptz | nullable |
 | `version` | int | optimistic concurrency |
+| `foto_dokumentasi` | text[] | array ID aset bukti penyerahan hadiah secara simbolis (maks. 3 foto) |
+| `diserahkan_at` | timestamptz | nullable; waktu penyerahan hadiah simbolis |
+| `diserahkan_catatan` | text | nullable; catatan / keterangan serah terima simbolis |
 
 Status wilayah `PERLU_KEPUTUSAN` diturunkan: ketiga slot wilayah berstatus `GUGUR`. Agar query publik sederhana, slot terakhir yang gugur tidak diubah; layanan menghitung status wilayah dan mengembalikannya sebagai `statusWilayah`.
 

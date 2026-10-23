@@ -3,6 +3,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { POST as gugurPost } from '@/app/api/periode/[id]/pemenang/[slot]/gugur/route';
 import { POST as nikPost } from '@/app/api/periode/[id]/pemenang/[slot]/nik/route';
 import { POST as verifikasiPost } from '@/app/api/periode/[id]/pemenang/[slot]/verifikasi/route';
+import { DELETE as fotoDelete } from '@/app/api/periode/[id]/pemenang/[slot]/foto/[fotoId]/route';
+import {
+  PATCH as fotoPatch,
+  POST as fotoPost,
+} from '@/app/api/periode/[id]/pemenang/[slot]/foto/route';
 import { GET as pemenangGet } from '@/app/api/periode/[id]/pemenang/route';
 import { getDb, tutupDb } from '@/server/db';
 import { enkripsiNik } from '@/server/nik';
@@ -513,6 +518,173 @@ describe('API Pemenang dan Kenaikan Cadangan Otomatis (Tiket 18)', () => {
       );
 
       expect(respons.status).toBe(403);
+    });
+  });
+
+  describe('Foto Dokumentasi Penyerahan Simbolis Pemenang', () => {
+    const FOTO_WEBP_VALID = 'UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEAAwA0JaQAA3AA/vuUAAA=';
+
+    it('mengunggah foto bukti penyerahan simbolis dan mencatat audit log', async () => {
+      const { periode } = await siapkanPeriodeDiundi();
+
+      const res = await fotoPost(
+        buatRequest(`/api/periode/${periode.id}/pemenang/W1-UTAMA/foto`, {
+          json: {
+            fileBase64: FOTO_WEBP_VALID,
+            nama: 'penyerahan-simbolis-bupati.webp',
+            catatan: 'Diserahkan langsung oleh Bupati OKU Selatan di panggung utama',
+          },
+          cookie: cookieAdmin,
+        }),
+        paramsSlot(periode.id, 'W1-UTAMA'),
+      );
+
+      expect(res.status).toBe(200);
+      const json = (await res.json()) as {
+        sukses: boolean;
+        fotoId: string;
+        fotoDokumentasi: string[];
+        diserahkanAt: string | null;
+        diserahkanCatatan: string | null;
+      };
+
+      expect(json.sukses).toBe(true);
+      expect(json.fotoDokumentasi.length).toBe(1);
+      expect(json.diserahkanCatatan).toBe(
+        'Diserahkan langsung oleh Bupati OKU Selatan di panggung utama',
+      );
+      expect(json.diserahkanAt).not.toBeNull();
+
+      // Cek di GET pemenang periode
+      const resGet = await pemenangGet(
+        buatRequest(`/api/periode/${periode.id}/pemenang`, {
+          cookie: cookieAdmin,
+        }),
+        paramsId(periode.id),
+      );
+      const dataPemenang = (await resGet.json()) as PemenangPeriodeRespons;
+      const slotW1 = dataPemenang.wilayah[0]?.slot.find((s) => s.kode === 'W1-UTAMA');
+      expect(slotW1?.fotoDokumentasi?.length).toBe(1);
+      expect(slotW1?.diserahkanCatatan).toBe(
+        'Diserahkan langsung oleh Bupati OKU Selatan di panggung utama',
+      );
+
+      // Audit log tercatat
+      const log = await getDb().auditLog.findFirst({
+        where: { aksi: 'PEMENANG_DOKUMENTASI_SIMBOLIS' },
+      });
+      expect(log).not.toBeNull();
+    });
+
+    it('menolak unggahan jika melebihi batas 3 foto (400 VALIDASI_GAGAL)', async () => {
+      const { periode } = await siapkanPeriodeDiundi();
+
+      // Unggah 3 foto
+      for (let i = 1; i <= 3; i++) {
+        const r = await fotoPost(
+          buatRequest(`/api/periode/${periode.id}/pemenang/W1-UTAMA/foto`, {
+            json: {
+              fileBase64: FOTO_WEBP_VALID,
+              nama: `foto-${i.toString()}.webp`,
+            },
+            cookie: cookieAdmin,
+          }),
+          paramsSlot(periode.id, 'W1-UTAMA'),
+        );
+        expect(r.status).toBe(200);
+      }
+
+      // Unggah foto ke-4 harus ditolak
+      const r4 = await fotoPost(
+        buatRequest(`/api/periode/${periode.id}/pemenang/W1-UTAMA/foto`, {
+          json: {
+            fileBase64: FOTO_WEBP_VALID,
+            nama: 'foto-4.webp',
+          },
+          cookie: cookieAdmin,
+        }),
+        paramsSlot(periode.id, 'W1-UTAMA'),
+      );
+
+      expect(r4.status).toBe(400);
+      const err = (await r4.json()) as { error?: { message?: string } };
+      expect(err.error?.message).toContain('Maksimal 3 foto');
+    });
+
+    it('memperbarui catatan penyerahan simbolis via PATCH', async () => {
+      const { periode } = await siapkanPeriodeDiundi();
+
+      const res = await fotoPatch(
+        buatRequest(`/api/periode/${periode.id}/pemenang/W1-UTAMA/foto`, {
+          json: {
+            catatan: 'Catatan hasil koreksi berita acara penyerahan',
+          },
+          cookie: cookieAdmin,
+        }),
+        paramsSlot(periode.id, 'W1-UTAMA'),
+      );
+
+      expect(res.status).toBe(200);
+      const json = (await res.json()) as { sukses: boolean; diserahkanCatatan: string };
+      expect(json.sukses).toBe(true);
+      expect(json.diserahkanCatatan).toBe('Catatan hasil koreksi berita acara penyerahan');
+    });
+
+    it('menghapus foto penyerahan simbolis via DELETE dan mencatat audit log', async () => {
+      const { periode } = await siapkanPeriodeDiundi();
+
+      const resUpload = await fotoPost(
+        buatRequest(`/api/periode/${periode.id}/pemenang/W1-UTAMA/foto`, {
+          json: {
+            fileBase64: FOTO_WEBP_VALID,
+            nama: 'foto-hapus.webp',
+          },
+          cookie: cookieAdmin,
+        }),
+        paramsSlot(periode.id, 'W1-UTAMA'),
+      );
+      const uploadJson = (await resUpload.json()) as { fotoId: string };
+
+      const resDelete = await fotoDelete(
+        buatRequest(`/api/periode/${periode.id}/pemenang/W1-UTAMA/foto/${uploadJson.fotoId}`, {
+          method: 'DELETE',
+          cookie: cookieAdmin,
+        }),
+        {
+          params: Promise.resolve({ id: periode.id, slot: 'W1-UTAMA', fotoId: uploadJson.fotoId }),
+        },
+      );
+
+      expect(resDelete.status).toBe(200);
+      const deleteJson = (await resDelete.json()) as {
+        sukses: boolean;
+        fotoDokumentasi: string[];
+      };
+      expect(deleteJson.sukses).toBe(true);
+      expect(deleteJson.fotoDokumentasi.length).toBe(0);
+
+      // Audit log PEMENANG_HAPUS_FOTO
+      const logHapus = await getDb().auditLog.findFirst({
+        where: { aksi: 'PEMENANG_HAPUS_FOTO' },
+      });
+      expect(logHapus).not.toBeNull();
+    });
+
+    it('menolak akses Operator dengan 403', async () => {
+      const { periode } = await siapkanPeriodeDiundi();
+
+      const res = await fotoPost(
+        buatRequest(`/api/periode/${periode.id}/pemenang/W1-UTAMA/foto`, {
+          json: {
+            fileBase64: FOTO_WEBP_VALID,
+            nama: 'foto-operator.webp',
+          },
+          cookie: cookieOperator,
+        }),
+        paramsSlot(periode.id, 'W1-UTAMA'),
+      );
+
+      expect(res.status).toBe(403);
     });
   });
 });

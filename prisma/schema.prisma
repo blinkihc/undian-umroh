@@ -332,6 +332,9 @@ model SlotHasil {
   statusChangedById String?        @map("status_changed_by_id")
   statusChangedAt   DateTime?      @map("status_changed_at") @db.Timestamptz(3)
   version           Int            @default(1)
+  fotoDokumentasi   String[]       @default([]) @map("foto_dokumentasi")
+  diserahkanAt      DateTime?      @map("diserahkan_at") @db.Timestamptz(3)
+  diserahkanCatatan String?        @map("diserahkan_catatan")
 
   hasil           HasilUndian             @relation(fields: [hasilId], references: [id], onDelete: Restrict)
   periode         Periode                 @relation(fields: [periodeId], references: [id], onDelete: Restrict)

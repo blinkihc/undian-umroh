@@ -30,6 +30,8 @@ import { Chip } from '@/components/ui/chip';
 import { SelectField } from '@/components/ui/select-field';
 import { TextareaField } from '@/components/ui/textarea-field';
 
+import { DokumentasiSimbolisAdmin } from './dokumentasi-simbolis-admin';
+
 const OPSI_ALASAN = DAFTAR_ALASAN_GUGUR.map((a) => ({
   nilai: a,
   label: LABEL_ALASAN_GUGUR[a],
@@ -211,9 +213,7 @@ export function KelolaPemenang({
       const hasil = (await res.json()) as PemenangPeriodeRespons;
       setDataPemenang(hasil);
       setBukaModalGugur(false);
-      setSukses(
-        `Kandidat pada slot ${slotTerpilih.kode} telah ditandai gugur.`,
-      );
+      setSukses(`Kandidat pada slot ${slotTerpilih.kode} telah ditandai gugur.`);
     } catch (err) {
       setGalatGugur(err instanceof Error ? err.message : 'Terjadi kegagalan.');
     } finally {
@@ -341,7 +341,7 @@ export function KelolaPemenang({
 
       {!adaSlot && (
         <div className="rounded-lg border border-dashed border-neutral-300 bg-neutral-0 p-8 text-center">
-          <p className="text-base font-semibold text-neutral-800">
+          <p className="text-neutral-800 text-base font-semibold">
             Hasil undian belum diunggah untuk periode ini.
           </p>
           <p className="mt-1 text-sm text-neutral-600">
@@ -351,7 +351,7 @@ export function KelolaPemenang({
       )}
 
       {adaSlot && (
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-neutral-300 bg-white p-5 shadow-xs">
+        <div className="shadow-xs flex flex-wrap items-center justify-between gap-4 rounded-lg border border-neutral-300 bg-white p-5">
           <div>
             <h3 className="text-sm font-bold text-neutral-900">Publikasi Hasil ke Masyarakat</h3>
             <p className="mt-0.5 text-xs text-neutral-600">
@@ -374,7 +374,9 @@ export function KelolaPemenang({
             ) : (
               <Button
                 varian="primary"
-                onClick={() => setBukaModalPublikasi(true)}
+                onClick={() => {
+                  setBukaModalPublikasi(true);
+                }}
               >
                 Publikasikan Hasil
               </Button>
@@ -394,19 +396,19 @@ export function KelolaPemenang({
                 key={w.kode}
                 className={`flex flex-col rounded-lg border bg-neutral-0 shadow-sm transition-all ${
                   isPerluKeputusan
-                    ? 'border-danger-700 bg-danger-50/20'
+                    ? 'bg-danger-50/20 border-danger-700'
                     : isTerverifikasi
                       ? 'border-success-700/50'
                       : 'border-neutral-300'
                 }`}
               >
                 {/* Header Wilayah */}
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 px-6 py-4">
+                <div className="border-neutral-200 flex flex-wrap items-center justify-between gap-3 border-b px-6 py-4">
                   <div>
                     <h2 className="text-lg font-bold text-neutral-900">
                       {w.kode} — {w.nama}
                     </h2>
-                    <p className="text-xs text-neutral-500">3 Slot Kandidat Undian</p>
+                    <p className="text-neutral-500 text-xs">3 Slot Kandidat Undian</p>
                   </div>
                   <div>
                     {isPerluKeputusan && (
@@ -429,7 +431,7 @@ export function KelolaPemenang({
 
                 {/* Banner Perlu Keputusan jika semua gugur */}
                 {isPerluKeputusan && (
-                  <div className="border-b border-danger-200 bg-danger-100 p-4">
+                  <div className="border-danger-200 border-b bg-danger-100 p-4">
                     <div className="flex items-start gap-2">
                       <AlertCircle className="size-5 shrink-0 text-danger-700" />
                       <div>
@@ -459,16 +461,16 @@ export function KelolaPemenang({
                         key={slot.kode}
                         className={`rounded-lg border p-4 transition-all ${
                           isAktif
-                            ? 'border-primary-700 bg-primary-50/20 ring-1 ring-primary-700'
+                            ? 'bg-primary-50/20 border-primary-700 ring-1 ring-primary-700'
                             : isGugur
                               ? 'border-neutral-200 bg-neutral-50/60 opacity-80'
                               : 'border-neutral-300 bg-neutral-0'
                         }`}
                       >
                         {/* Header Slot */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 pb-3">
+                        <div className="border-neutral-100 flex flex-wrap items-center justify-between gap-2 border-b pb-3">
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm font-bold text-neutral-800">
+                            <span className="text-neutral-800 font-mono text-sm font-bold">
                               {slot.kode}
                             </span>
                             {isAktif && (
@@ -503,9 +505,9 @@ export function KelolaPemenang({
                         </div>
 
                         {/* Data Peserta */}
-                        <div className="mt-3 space-y-2 text-sm text-neutral-700">
+                        <div className="text-neutral-700 mt-3 space-y-2 text-sm">
                           <div>
-                            <p className="text-xs text-neutral-500">Nama Wajib Pajak</p>
+                            <p className="text-neutral-500 text-xs">Nama Wajib Pajak</p>
                             <p className="text-base font-bold text-neutral-900">
                               {slot.peserta.nama}
                             </p>
@@ -513,14 +515,14 @@ export function KelolaPemenang({
 
                           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             <div>
-                              <p className="text-xs text-neutral-500">NOP</p>
-                              <p className="font-mono text-xs font-semibold text-neutral-800">
+                              <p className="text-neutral-500 text-xs">NOP</p>
+                              <p className="text-neutral-800 font-mono text-xs font-semibold">
                                 {slot.peserta.nopFormat}
                               </p>
                             </div>
                             <div>
                               <div className="flex items-center justify-between">
-                                <p className="text-xs text-neutral-500">NIK (Tersamar)</p>
+                                <p className="text-neutral-500 text-xs">NIK (Tersamar)</p>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -532,7 +534,7 @@ export function KelolaPemenang({
                                   Lihat Asli
                                 </button>
                               </div>
-                              <p className="font-mono text-xs text-neutral-800">
+                              <p className="text-neutral-800 font-mono text-xs">
                                 {slot.peserta.nikMasked}
                               </p>
                             </div>
@@ -540,14 +542,14 @@ export function KelolaPemenang({
 
                           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             <div>
-                              <p className="text-xs text-neutral-500">Kecamatan / Kelurahan</p>
-                              <p className="text-xs font-medium text-neutral-800">
+                              <p className="text-neutral-500 text-xs">Kecamatan / Kelurahan</p>
+                              <p className="text-neutral-800 text-xs font-medium">
                                 {slot.peserta.kecamatan} / {slot.peserta.kelurahan}
                               </p>
                             </div>
                             <div>
-                              <p className="text-xs text-neutral-500">Alamat WP</p>
-                              <p className="truncate text-xs text-neutral-800">
+                              <p className="text-neutral-500 text-xs">Alamat WP</p>
+                              <p className="text-neutral-800 truncate text-xs">
                                 {slot.peserta.alamatWp}
                               </p>
                             </div>
@@ -556,12 +558,12 @@ export function KelolaPemenang({
                           {/* Data Pelunasan */}
                           {Object.keys(slot.peserta.lunas).length > 0 && (
                             <div className="pt-1">
-                              <p className="mb-1 text-xs text-neutral-500">Pelunasan PBB-P2</p>
+                              <p className="text-neutral-500 mb-1 text-xs">Pelunasan PBB-P2</p>
                               <div className="flex flex-wrap gap-1">
                                 {Object.entries(slot.peserta.lunas).map(([th, tgl]) => (
                                   <span
                                     key={th}
-                                    className="rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] text-neutral-700"
+                                    className="rounded bg-neutral-100 text-neutral-700 px-1.5 py-0.5 text-[11px]"
                                   >
                                     <strong className="text-neutral-900">{th}:</strong> {tgl}
                                   </span>
@@ -572,7 +574,7 @@ export function KelolaPemenang({
 
                           {/* Keterangan Gugur jika berstatus Gugur */}
                           {isGugur && (
-                            <div className="mt-2 rounded border border-danger-300 bg-danger-50 p-2 text-xs text-danger-700">
+                            <div className="rounded border-danger-300 bg-danger-50 mt-2 border p-2 text-xs text-danger-700">
                               <p className="font-semibold">
                                 Alasan Gugur:{' '}
                                 {slot.alasanGugur
@@ -582,16 +584,31 @@ export function KelolaPemenang({
                                   : '-'}
                               </p>
                               {slot.catatan && (
-                                <p className="mt-0.5 text-danger-700/90">
-                                  Catatan: {slot.catatan}
-                                </p>
+                                <p className="mt-0.5 text-danger-700/90">Catatan: {slot.catatan}</p>
                               )}
                             </div>
                           )}
                         </div>
 
+                        {/* Dokumentasi Penyerahan Simbolis */}
+                        {!isGugur && (
+                          <DokumentasiSimbolisAdmin
+                            periodeId={periodeId}
+                            slot={slot}
+                            onBerhasil={() => {
+                              void muatData();
+                            }}
+                            onError={(pesan) => {
+                              setGalat(pesan);
+                            }}
+                            onSukses={(pesan) => {
+                              setSukses(pesan);
+                            }}
+                          />
+                        )}
+
                         {/* Bilah Aksi Slot */}
-                        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-3">
+                        <div className="border-neutral-100 mt-4 flex flex-wrap items-center justify-between gap-2 border-t pt-3">
                           <button
                             type="button"
                             onClick={() => {
@@ -639,24 +656,24 @@ export function KelolaPemenang({
 
                         {/* Panel Collapse Riwayat Status */}
                         {bukaHistory && (
-                          <div className="mt-3 space-y-2 rounded-md bg-neutral-50 p-3 text-xs text-neutral-700">
+                          <div className="text-neutral-700 mt-3 space-y-2 rounded-md bg-neutral-50 p-3 text-xs">
                             <p className="font-semibold text-neutral-900">
                               Riwayat Perubahan Status:
                             </p>
                             {slot.riwayat.length === 0 ? (
-                              <p className="italic text-neutral-500">Belum ada catatan riwayat.</p>
+                              <p className="text-neutral-500 italic">Belum ada catatan riwayat.</p>
                             ) : (
                               <ul className="space-y-1.5">
                                 {slot.riwayat.map((r) => (
                                   <li
                                     key={r.id}
-                                    className="border-b border-neutral-200/60 pb-1.5 last:border-0"
+                                    className="border-neutral-200/60 border-b pb-1.5 last:border-0"
                                   >
-                                    <div className="flex items-center justify-between text-neutral-500">
+                                    <div className="text-neutral-500 flex items-center justify-between">
                                       <span>Oleh: {r.oleh}</span>
                                       <span>{new Date(r.at).toLocaleString('id-ID')}</span>
                                     </div>
-                                    <p className="font-medium text-neutral-800">
+                                    <p className="text-neutral-800 font-medium">
                                       {r.dari} &rarr; {r.ke}
                                       {r.alasanGugur && ` (${r.alasanGugur})`}
                                     </p>
@@ -682,8 +699,8 @@ export function KelolaPemenang({
       {/* Modal Tandai Gugur */}
       {bukaModalGugur && slotTerpilih !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/50 p-4">
-          <div className="w-full max-w-md rounded-lg border border-neutral-300 bg-neutral-0 p-6 shadow-xl">
-            <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
+          <div className="shadow-xl w-full max-w-md rounded-lg border border-neutral-300 bg-neutral-0 p-6">
+            <div className="border-neutral-200 flex items-center justify-between border-b pb-3">
               <h3 className="text-lg font-bold text-neutral-900">
                 Tandai Gugur — {slotTerpilih.kode}
               </h3>
@@ -733,7 +750,7 @@ export function KelolaPemenang({
               />
             </div>
 
-            <div className="mt-6 flex justify-end gap-3 border-t border-neutral-200 pt-4">
+            <div className="border-neutral-200 mt-6 flex justify-end gap-3 border-t pt-4">
               <Button
                 varian="secondary"
                 onClick={() => {
@@ -761,8 +778,8 @@ export function KelolaPemenang({
       {/* Modal Intip NIK */}
       {bukaModalNik && slotTerpilih !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/50 p-4">
-          <div className="w-full max-w-md rounded-lg border border-neutral-300 bg-neutral-0 p-6 shadow-xl">
-            <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
+          <div className="shadow-xl w-full max-w-md rounded-lg border border-neutral-300 bg-neutral-0 p-6">
+            <div className="border-neutral-200 flex items-center justify-between border-b pb-3">
               <div className="flex items-center gap-2">
                 <ShieldAlert className="size-5 text-warning-700" />
                 <h3 className="text-lg font-bold text-neutral-900">Lihat NIK Asli</h3>
@@ -780,11 +797,11 @@ export function KelolaPemenang({
 
             <div className="mt-4 space-y-4">
               <p className="text-sm text-neutral-600">
-                Kandidat: <strong className="text-neutral-900">{slotTerpilih.peserta.nama}</strong> (
-                {slotTerpilih.kode})
+                Kandidat: <strong className="text-neutral-900">{slotTerpilih.peserta.nama}</strong>{' '}
+                ({slotTerpilih.kode})
               </p>
 
-              <div className="rounded-md border border-warning-300 bg-warning-50 p-3 text-xs text-warning-700">
+              <div className="border-warning-300 bg-warning-50 rounded-md border p-3 text-xs text-warning-700">
                 Peringatan: Data NIK bersifat rahasia. Permintaan untuk menampilkan NIK asli wajib
                 disertai alasan dan akan dicatat secara permanen di Log Audit.
               </div>
@@ -807,7 +824,7 @@ export function KelolaPemenang({
                 />
               ) : (
                 <div className="space-y-2 rounded-md border border-neutral-300 bg-neutral-50 p-4 text-center">
-                  <p className="text-xs text-neutral-500">Nomor Induk Kependudukan (NIK):</p>
+                  <p className="text-neutral-500 text-xs">Nomor Induk Kependudukan (NIK):</p>
                   <p className="font-mono text-xl font-bold tracking-wider text-neutral-900">
                     {nikTerbuka}
                   </p>
@@ -815,7 +832,7 @@ export function KelolaPemenang({
               )}
             </div>
 
-            <div className="mt-6 flex justify-end gap-3 border-t border-neutral-200 pt-4">
+            <div className="border-neutral-200 mt-6 flex justify-end gap-3 border-t pt-4">
               <Button
                 varian="secondary"
                 onClick={() => {
@@ -850,14 +867,16 @@ export function KelolaPemenang({
           aria-labelledby="judul-modal-publikasi"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
         >
-          <div className="w-full max-w-md rounded-lg bg-neutral-0 p-6 shadow-xl">
-            <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
+          <div className="shadow-xl w-full max-w-md rounded-lg bg-neutral-0 p-6">
+            <div className="border-neutral-200 flex items-center justify-between border-b pb-3">
               <h3 id="judul-modal-publikasi" className="text-base font-bold text-neutral-900">
                 Publikasikan Hasil Undian
               </h3>
               <button
                 type="button"
-                onClick={() => setBukaModalPublikasi(false)}
+                onClick={() => {
+                  setBukaModalPublikasi(false);
+                }}
                 className="text-neutral-500 hover:text-neutral-700"
               >
                 <X className="h-5 w-5" />
@@ -866,13 +885,17 @@ export function KelolaPemenang({
 
             <div className="mt-4 space-y-3 text-sm text-neutral-600">
               <p>
-                Anda akan mempublikasikan daftar pemenang ke halaman publik (<strong>/pemenang</strong>).
+                Anda akan mempublikasikan daftar pemenang ke halaman publik (
+                <strong>/pemenang</strong>).
               </p>
-              <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-700">
-                • Data NIK dan NOP akan disamarkan secara otomatis demi privasi wajib pajak.<br />
-                • Alasan gugur dan catatan internal tidak akan ditampilkan ke publik.<br />
-                • Bukti integritas berupa hash SHA-256 snapshot dan hasil undian akan disertakan.<br />
-                • Status periode menjadi <strong>Dipublikasi</strong> dan melepaskan aturan satu periode aktif.
+              <div className="border-neutral-200 text-neutral-700 rounded-md border bg-neutral-50 p-3 text-xs">
+                • Data NIK dan NOP akan disamarkan secara otomatis demi privasi wajib pajak.
+                <br />
+                • Alasan gugur dan catatan internal tidak akan ditampilkan ke publik.
+                <br />
+                • Bukti integritas berupa hash SHA-256 snapshot dan hasil undian akan disertakan.
+                <br />• Status periode menjadi <strong>Dipublikasi</strong> dan melepaskan aturan
+                satu periode aktif.
               </div>
 
               {galatPublikasi !== null && (
@@ -882,10 +905,12 @@ export function KelolaPemenang({
               )}
             </div>
 
-            <div className="mt-6 flex justify-end gap-3 border-t border-neutral-200 pt-4">
+            <div className="border-neutral-200 mt-6 flex justify-end gap-3 border-t pt-4">
               <Button
                 varian="secondary"
-                onClick={() => setBukaModalPublikasi(false)}
+                onClick={() => {
+                  setBukaModalPublikasi(false);
+                }}
                 disabled={memuatPublikasi}
               >
                 Batal

@@ -133,10 +133,21 @@ export type SlotPemenangRespons = {
   penerimaAktif: boolean;
   alasanGugur?: string | null;
   catatan?: string | null;
+  fotoDokumentasi?: string[];
+  diserahkanAt?: string | null;
+  diserahkanCatatan?: string | null;
   peserta: PesertaPemenangRespons;
   version: number;
   riwayat: RiwayatStatusRespons[];
 };
+
+export const DokumentasiSimbolisInputSchema = z
+  .object({
+    catatan: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
+export type DokumentasiSimbolisInput = z.infer<typeof DokumentasiSimbolisInputSchema>;
 
 export type WilayahPemenangRespons = {
   kode: 'W1' | 'W2';
@@ -152,6 +163,70 @@ export type PemenangPeriodeRespons = {
 export type LihatNikRespons = {
   nik: string;
 };
+
+export type SlotPemenangPublik = {
+  kode: KodeSlotPaket;
+  status: StatusPemenang;
+  penerimaAktif: boolean;
+  diperbaruiAt: string | null;
+  fotoDokumentasi?: string[];
+  diserahkanAt: string | null;
+  diserahkanCatatan: string | null;
+  peserta: {
+    nopMasked: string;
+    nikMasked: string;
+    nama: string;
+    alamatWp: string;
+    alamatOp: string;
+    kecamatan: string;
+    kelurahan: string;
+    lunas: Record<string, string>;
+  };
+};
+
+export type WilayahPemenangPublik = {
+  kode: string;
+  nama: string;
+  status: StatusWilayah;
+  slot: SlotPemenangPublik[];
+};
+
+export type PemenangPublikRespons =
+  | {
+      status: 'BELUM_DIUMUMKAN';
+      pesan: string;
+      periode?: { judul: string };
+    }
+  | {
+      status: 'TIDAK_ADA_PERIODE';
+      pesan: string;
+    }
+  | {
+      status: 'DIPUBLIKASI';
+      periode: {
+        id: string;
+        judul: string;
+        tanggalAcara: string | null;
+        lokasiAcara: string | null;
+        publishedAt: string;
+        updatedAt: string;
+      };
+      integritas: {
+        snapshotHash: string | null;
+        hasilHash: string | null;
+        pesertaPerWilayah: Array<{
+          kode: string;
+          nama: string;
+          jumlahPeserta: number;
+          jumlahTidakLolos?: number;
+          totalWp?: number;
+        }>;
+        totalPeserta: number;
+        totalTidakLolos?: number;
+        totalSemua?: number;
+      };
+      wilayah: WilayahPemenangPublik[];
+    };
 
 /**
  * Logika murni penandaan gugur dan kenaikan cadangan berikutnya (PRD F8, DECISIONS 007).

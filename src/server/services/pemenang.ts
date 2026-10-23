@@ -1,7 +1,7 @@
-import { type StatusPemenang } from '@/generated/prisma/client';
+import 'server-only';
+
 import { formatNop, maskNop } from '@/lib/domain/nop';
 import { isoWib } from '@/lib/domain/waktu';
-import { type KodeSlotPaket } from '@/lib/package/kontrak';
 import {
   GugurInputSchema,
   hitungKenaikanCadangan,
@@ -13,12 +13,15 @@ import {
   type LihatNikInput,
   type LihatNikRespons,
   type PemenangPeriodeRespons,
+  type PemenangPublikRespons,
   type PesertaPemenangRespons,
   type RiwayatStatusRespons,
+  type SlotPemenangPublik,
   type SlotPemenangRespons,
   type StatusWilayah,
   type VerifikasiInput,
   VerifikasiInputSchema,
+  type WilayahPemenangPublik,
   type WilayahPemenangRespons,
 } from '@/lib/domain/pemenang';
 import { audit } from '@/server/audit';
@@ -27,14 +30,18 @@ import { getDb } from '@/server/db';
 import { AppError } from '@/server/errors';
 import { dekripsiNik } from '@/server/nik';
 import { type KonteksRequest } from '@/server/request';
+import { simpanAset } from '@/server/services/tema';
 
 export type {
   LihatNikRespons,
   PemenangPeriodeRespons,
+  PemenangPublikRespons,
   PesertaPemenangRespons,
   RiwayatStatusRespons,
+  SlotPemenangPublik,
   SlotPemenangRespons,
   StatusWilayah,
+  WilayahPemenangPublik,
   WilayahPemenangRespons,
 };
 
@@ -83,6 +90,9 @@ export async function ambilPemenangPeriode(periodeId: string): Promise<PemenangP
       penerimaAktif: s.penerimaAktif,
       ...(s.alasanGugur !== null && { alasanGugur: s.alasanGugur }),
       ...(s.catatan !== null && { catatan: s.catatan }),
+      fotoDokumentasi: s.fotoDokumentasi,
+      diserahkanAt: s.diserahkanAt ? isoWib(s.diserahkanAt) : null,
+      diserahkanCatatan: s.diserahkanCatatan ?? null,
       peserta: {
         nopFormat: formatNop(s.peserta.nop),
         nikMasked: s.peserta.nikMasked,
@@ -464,63 +474,6 @@ export async function lihatNikPemenang(
   };
 }
 
-export type SlotPemenangPublik = {
-  kode: KodeSlotPaket;
-  status: StatusPemenang;
-  penerimaAktif: boolean;
-  diperbaruiAt: string | null;
-  peserta: {
-    nopMasked: string;
-    nikMasked: string;
-    nama: string;
-    alamatWp: string;
-    alamatOp: string;
-    kecamatan: string;
-    kelurahan: string;
-    lunas: Record<string, string>;
-  };
-};
-
-export type WilayahPemenangPublik = {
-  kode: string;
-  nama: string;
-  status: StatusWilayah;
-  slot: SlotPemenangPublik[];
-};
-
-export type PemenangPublikRespons =
-  | {
-      status: 'BELUM_DIUMUMKAN';
-      pesan: string;
-      periode?: { judul: string };
-    }
-  | {
-      status: 'TIDAK_ADA_PERIODE';
-      pesan: string;
-    }
-  | {
-      status: 'DIPUBLIKASI';
-      periode: {
-        id: string;
-        judul: string;
-        tanggalAcara: string | null;
-        lokasiAcara: string | null;
-        publishedAt: string;
-        updatedAt: string;
-      };
-      integritas: {
-        snapshotHash: string | null;
-        hasilHash: string | null;
-        pesertaPerWilayah: Array<{
-          kode: string;
-          nama: string;
-          jumlahPeserta: number;
-        }>;
-        totalPeserta: number;
-      };
-      wilayah: WilayahPemenangPublik[];
-    };
-
 /**
  * Mengambil data publik pemenang undian (PRD F10, API.md GET /api/publik/pemenang).
  * Menyembunyikan alasan gugur, menyamarkan NIK dan NOP, serta menampilkan hash integritas.
@@ -581,6 +534,9 @@ export async function ambilPemenangPublik(): Promise<PemenangPublikRespons> {
       status: s.status,
       penerimaAktif: s.penerimaAktif,
       diperbaruiAt: riwayatTerbaru ? isoWib(riwayatTerbaru.at) : null,
+      fotoDokumentasi: s.fotoDokumentasi,
+      diserahkanAt: s.diserahkanAt ? isoWib(s.diserahkanAt) : null,
+      diserahkanCatatan: s.diserahkanCatatan ?? null,
       peserta: {
         nopMasked: maskNop(s.peserta.nop),
         nikMasked: s.peserta.nikMasked,
@@ -610,13 +566,45 @@ export async function ambilPemenangPublik(): Promise<PemenangPublikRespons> {
   const jW1 = periodePublik.snapshot?.jumlahW1 ?? 0;
   const jW2 = periodePublik.snapshot?.jumlahW2 ?? 0;
 
-  const rekapWilayah = periodePublik.wilayah.map((w) => ({
-    kode: w.kode,
-    nama: w.nama,
-    jumlahPeserta: w.kode === 'W1' ? jW1 : jW2,
-  }));
+  // Hitung pembanding peserta tidak lolos (gugur kriteria) per wilayah
+  const kecamatanWilayah = await db.kecamatanWilayah.findMany({
+    where: { periodeId: periodePublik.id },
+    include: { wilayah: true },
+  });
+  const kecW1 = kecamatanWilayah.filter((k) => k.wilayah?.kode === 'W1').map((k) => k.kecamatan);
+  const kecW2 = kecamatanWilayah.filter((k) => k.wilayah?.kode === 'W2').map((k) => k.kecamatan);
 
-  const totalPeserta = rekapWilayah.reduce((a: number, b: { jumlahPeserta: number }) => a + b.jumlahPeserta, 0);
+  const [gugurW1, gugurW2] = await Promise.all([
+    kecW1.length > 0
+      ? db.peserta.count({
+          where: { periodeId: periodePublik.id, eligible: false, kecamatan: { in: kecW1 } },
+        })
+      : Promise.resolve(0),
+    kecW2.length > 0
+      ? db.peserta.count({
+          where: { periodeId: periodePublik.id, eligible: false, kecamatan: { in: kecW2 } },
+        })
+      : Promise.resolve(0),
+  ]);
+
+  const totalGugur = gugurW1 + gugurW2;
+
+  const rekapWilayah = periodePublik.wilayah.map((w) => {
+    const lolos = w.kode === 'W1' ? jW1 : jW2;
+    const tidakLolos = w.kode === 'W1' ? gugurW1 : gugurW2;
+    return {
+      kode: w.kode,
+      nama: w.nama,
+      jumlahPeserta: lolos,
+      jumlahTidakLolos: tidakLolos,
+      totalWp: lolos + tidakLolos,
+    };
+  });
+
+  const totalPeserta = rekapWilayah.reduce(
+    (a: number, b: { jumlahPeserta: number }) => a + b.jumlahPeserta,
+    0,
+  );
 
   return {
     status: 'DIPUBLIKASI',
@@ -635,6 +623,8 @@ export async function ambilPemenangPublik(): Promise<PemenangPublikRespons> {
       hasilHash: periodePublik.hasilUndian?.hasilHash ?? null,
       pesertaPerWilayah: rekapWilayah,
       totalPeserta,
+      totalTidakLolos: totalGugur,
+      totalSemua: totalPeserta + totalGugur,
     },
     wilayah: [
       {
@@ -653,3 +643,223 @@ export async function ambilPemenangPublik(): Promise<PemenangPublikRespons> {
   };
 }
 
+export async function unggahFotoDokumentasiPemenang(
+  periodeId: string,
+  slotKodeRaw: string,
+  berkas: { buffer: Buffer; nama: string },
+  catatan: string | undefined,
+  aktor: PenggunaSesi,
+  konteks?: KonteksRequest,
+): Promise<{
+  fotoId: string;
+  fotoDokumentasi: string[];
+  diserahkanAt: string | null;
+  diserahkanCatatan: string | null;
+}> {
+  const kodeDb = normalisasiKodeSlotDb(slotKodeRaw);
+  if (kodeDb === null) {
+    throw new AppError('SLOT_TIDAK_VALID', 400, `Kode slot ${slotKodeRaw} tidak valid.`);
+  }
+
+  const db = getDb();
+  const slot = await db.slotHasil.findUnique({
+    where: {
+      periodeId_slot: {
+        periodeId,
+        slot: kodeDb,
+      },
+    },
+  });
+
+  if (slot === null) {
+    throw new AppError('TIDAK_DITEMUKAN', 404, `Slot hasil ${slotKodeRaw} tidak ditemukan.`);
+  }
+
+  if (slot.fotoDokumentasi.length >= 3) {
+    throw new AppError('VALIDASI_GAGAL', 400, 'Maksimal 3 foto dokumentasi per pemenang.');
+  }
+
+  const aset = await simpanAset({
+    buffer: berkas.buffer,
+    nama: `Dokumentasi Simbolis ${slotKodeRaw} - ${berkas.nama}`,
+    deskripsi: `Bukti penyerahan hadiah simbolis pemenang ${slotKodeRaw}`,
+    lisensi: 'Dokumentasi Resmi Bapenda OKU Selatan',
+    jenis: 'GAMBAR',
+    aktor,
+    konteks,
+  });
+
+  if (slot.fotoDokumentasi.includes(aset.id)) {
+    throw new AppError('VALIDASI_GAGAL', 400, 'Foto yang sama persis sudah diunggah pada pemenang ini.');
+  }
+
+  const fotoDokumentasiBaru = [...slot.fotoDokumentasi, aset.id];
+  const diserahkanAt = slot.diserahkanAt ?? new Date();
+  const diserahkanCatatan =
+    catatan !== undefined && catatan.trim().length > 0 ? catatan.trim() : slot.diserahkanCatatan;
+
+  const updated = await db.slotHasil.update({
+    where: { id: slot.id },
+    data: {
+      fotoDokumentasi: fotoDokumentasiBaru,
+      diserahkanAt,
+      diserahkanCatatan,
+      version: { increment: 1 },
+    },
+  });
+
+  await audit(db, {
+    aksi: 'PEMENANG_DOKUMENTASI_SIMBOLIS',
+    aktor,
+    targetTipe: 'slot_hasil',
+    targetId: slot.id,
+    payload: {
+      slot: slotKodeRaw,
+      asetId: aset.id,
+      totalFoto: fotoDokumentasiBaru.length,
+      diserahkanCatatan,
+    },
+    konteks,
+  });
+
+  return {
+    fotoId: aset.id,
+    fotoDokumentasi: updated.fotoDokumentasi,
+    diserahkanAt: updated.diserahkanAt ? isoWib(updated.diserahkanAt) : null,
+    diserahkanCatatan: updated.diserahkanCatatan,
+  };
+}
+
+export async function hapusFotoDokumentasiPemenang(
+  periodeId: string,
+  slotKodeRaw: string,
+  fotoId: string,
+  aktor: PenggunaSesi,
+  konteks?: KonteksRequest,
+): Promise<{
+  fotoDokumentasi: string[];
+  diserahkanAt: string | null;
+  diserahkanCatatan: string | null;
+}> {
+  const kodeDb = normalisasiKodeSlotDb(slotKodeRaw);
+  if (kodeDb === null) {
+    throw new AppError('SLOT_TIDAK_VALID', 400, `Kode slot ${slotKodeRaw} tidak valid.`);
+  }
+
+  const db = getDb();
+  const slot = await db.slotHasil.findUnique({
+    where: {
+      periodeId_slot: {
+        periodeId,
+        slot: kodeDb,
+      },
+    },
+  });
+
+  if (slot === null) {
+    throw new AppError('TIDAK_DITEMUKAN', 404, `Slot hasil ${slotKodeRaw} tidak ditemukan.`);
+  }
+
+  const fotoDokumentasiBaru = slot.fotoDokumentasi.filter((id) => id !== fotoId);
+  const diserahkanAt = fotoDokumentasiBaru.length === 0 ? null : slot.diserahkanAt;
+
+  const updated = await db.slotHasil.update({
+    where: { id: slot.id },
+    data: {
+      fotoDokumentasi: fotoDokumentasiBaru,
+      diserahkanAt,
+      version: { increment: 1 },
+    },
+  });
+
+  await audit(db, {
+    aksi: 'PEMENANG_HAPUS_FOTO',
+    aktor,
+    targetTipe: 'slot_hasil',
+    targetId: slot.id,
+    payload: {
+      slot: slotKodeRaw,
+      fotoId,
+      sisaFoto: fotoDokumentasiBaru.length,
+    },
+    konteks,
+  });
+
+  return {
+    fotoDokumentasi: updated.fotoDokumentasi,
+    diserahkanAt: updated.diserahkanAt ? isoWib(updated.diserahkanAt) : null,
+    diserahkanCatatan: updated.diserahkanCatatan,
+  };
+}
+
+export async function perbaruiCatatanSimbolisPemenang(
+  periodeId: string,
+  slotKodeRaw: string,
+  catatan: string,
+  diserahkanAtRaw: string | null | undefined,
+  aktor: PenggunaSesi,
+  konteks?: KonteksRequest,
+): Promise<{
+  diserahkanCatatan: string | null;
+  diserahkanAt: string | null;
+}> {
+  const kodeDb = normalisasiKodeSlotDb(slotKodeRaw);
+  if (kodeDb === null) {
+    throw new AppError('SLOT_TIDAK_VALID', 400, `Kode slot ${slotKodeRaw} tidak valid.`);
+  }
+
+  const db = getDb();
+  const slot = await db.slotHasil.findUnique({
+    where: {
+      periodeId_slot: {
+        periodeId,
+        slot: kodeDb,
+      },
+    },
+  });
+
+  if (slot === null) {
+    throw new AppError('TIDAK_DITEMUKAN', 404, `Slot hasil ${slotKodeRaw} tidak ditemukan.`);
+  }
+
+  const diserahkanCatatan = catatan.trim().length > 0 ? catatan.trim() : null;
+
+  let diserahkanAtBaru = slot.diserahkanAt;
+  if (diserahkanAtRaw !== undefined) {
+    if (diserahkanAtRaw === null || diserahkanAtRaw.trim() === '') {
+      diserahkanAtBaru = null;
+    } else {
+      const parsed = new Date(diserahkanAtRaw);
+      if (!isNaN(parsed.getTime())) {
+        diserahkanAtBaru = parsed;
+      }
+    }
+  }
+
+  const updated = await db.slotHasil.update({
+    where: { id: slot.id },
+    data: {
+      diserahkanCatatan,
+      diserahkanAt: diserahkanAtBaru,
+      version: { increment: 1 },
+    },
+  });
+
+  await audit(db, {
+    aksi: 'PEMENANG_DOKUMENTASI_SIMBOLIS',
+    aktor,
+    targetTipe: 'slot_hasil',
+    targetId: slot.id,
+    payload: {
+      slot: slotKodeRaw,
+      diserahkanCatatan,
+      diserahkanAt: updated.diserahkanAt ? isoWib(updated.diserahkanAt) : null,
+    },
+    konteks,
+  });
+
+  return {
+    diserahkanCatatan: updated.diserahkanCatatan,
+    diserahkanAt: updated.diserahkanAt ? isoWib(updated.diserahkanAt) : null,
+  };
+}

@@ -949,5 +949,55 @@ Layar undian benar-benar penuh di proyektor panggung, audio tersimpan aman di In
 Tradeoff:
 Penyimpanan IndexedDB bersifat lokal per perangkat laptop operator, sehingga file audio yang diunggah diatur pada laptop yang akan digunakan untuk acara.
 
+---
+
+## Decision 028
+
+Title:
+Dokumentasi penyerahan hadiah secara simbolis pada pemenang masing-masing zona dengan galeri multi-foto dan modal lightbox
+
+Date:
+2026-10-20
+
+Status:
+Accepted
+
+Context:
+Setelah pemenang masing-masing zona (W1 dan W2) ditetapkan dan diverifikasi, panitia menyelenggarakan prosesi penyerahan hadiah umroh secara simbolis (misalnya penyerahan tiket simbolis dan cinderamata oleh Bupati/pejabat daerah). Penyelenggara dan masyarakat membutuhkan bukti dokumentasi otentik yang transparan pada halaman pemenang publik bahwa hadiah benar-benar telah diserahkan secara sah dan simbolis kepada pemenang bersangkutan.
+
+Decision:
+1. Skema Database & Penyimpanan Berkas:
+   - Menambahkan kolom pada model `SlotHasil`:
+     - `foto_dokumentasi`: `text[]` (array ID aset, default kosong, dibatasi maksimal 3 foto dokumentasi per pemenang slot).
+     - `diserahkan_at`: `timestamptz` (waktu penyerahan hadiah simbolis).
+     - `diserahkan_catatan`: `text` (catatan/keterangan resmi serah terima simbolis).
+   - Berkas foto diproses melalui layanan aset (`simpanAset`) dengan validasi magic bytes (format JPG, PNG, WebP; batas 5 MB per berkas), deduplikasi berbasis SHA-256, dan disimpan fisik pada direktori storage aset server.
+2. Endpoint API Pengelolaan:
+   - `POST /api/periode/:id/pemenang/:slot/foto`: Mengunggah foto dokumentasi penyerahan simbolis (mendukung multipart/form-data dan JSON base64) dengan batas 3 foto per slot.
+   - `PATCH /api/periode/:id/pemenang/:slot/foto`: Memperbarui catatan/keterangan serah terima simbolis.
+   - `DELETE /api/periode/:id/pemenang/:slot/foto/:fotoId`: Menghapus foto dokumentasi tertentu dari slot pemenang.
+   - Aksi mutasi diaudit dengan kode `PEMENANG_DOKUMENTASI_SIMBOLIS` dan `PEMENANG_HAPUS_FOTO`.
+3. Antarmuka Panel Admin (`DokumentasiSimbolisAdmin`):
+   - Disediakan kartu "Bukti Penyerahan Simbolis" pada slot pemenang sah yang belum gugur di panel kelola pemenang (`/admin/periode/[id]/pemenang`).
+   - Menyediakan galeri thumbnail foto, tombol unggah foto bukti dengan sisa slot kuota (maksimal 3 foto), tombol hapus foto berkonfirmasi, input catatan penyerahan dengan tombol simpan, dan modal lightbox pratinjau resolusi penuh.
+4. Tampilan Publik (`TampilanPemenangPublik`):
+   - Pada kartu pemenang masing-masing zona di halaman publik (`/pemenang`), jika terdapat foto dokumentasi, ditampilkan lencana hijau "Hadiah Telah Diserahkan" beserta thumbnail galeri foto dokumentasi.
+   - Mengklik thumbnail akan membuka modal lightbox interaktif yang mendukung navigasi keyboard (Escape untuk keluar, Panah Kiri/Kanan untuk berpindah foto), tombol navigasi sebelumnya/selanjutnya, dan keterangan waktu serta catatan serah terima simbolis.
+
+Alternatives:
+- Menyimpan hanya 1 foto tunggal (ditolak karena acara penyerahan simbolis seringkali membutuhkan dokumentasi dari beberapa sudut atau bersama pejabat).
+- Menyimpan URL foto eksternal (ditolak karena tidak menjamin ketersediaan jangka panjang dan integritas berkas di server Pemkab).
+
+Reason:
+Meningkatkan akuntabilitas, transparansi, dan kepercayaan publik terhadap hasil penyelenggaraan undian umroh resmi Kabupaten OKU Selatan.
+
+Consequences:
+
+Positive:
+Publik dapat melihat bukti nyata penyerahan hadiah kepada pemenang masing-masing zona secara langsung dan interaktif; admin dapat mengelola hingga 3 foto bukti penyerahan simbolis dengan audit log lengkap.
+
+Tradeoff:
+Penyimpanan server menampung berkas foto bukti penyerahan simbolis dengan kuota terkontrol (maksimal 3 foto per pemenang, 5 MB per foto).
+
 
 

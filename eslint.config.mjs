@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import nextVitals from 'eslint-config-next/core-web-vitals';
 import nextTs from 'eslint-config-next/typescript';
+import importPlugin from 'eslint-plugin-import';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
@@ -98,6 +99,7 @@ export default defineConfig([
     '.scratch/**',
     '.storage/**',
     '.backups/**',
+    'dist/**',
     'docs/**',
     'design/**',
     'public/**',
@@ -141,6 +143,9 @@ export default defineConfig([
   },
 
   {
+    plugins: {
+      import: importPlugin,
+    },
     settings: { 'import/internal-regex': '^@/' },
     rules: {
       // Urutan impor: bawaan Node, paket eksternal, alias @/, lalu relatif (CODE_STYLE §4).

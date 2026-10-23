@@ -4,6 +4,45 @@
 
 ## [Unreleased]
 
+### Added
+
+- Fitur Bukti Dokumentasi Penyerahan Hadiah Simbolis Pemenang Zona (W1 & W2):
+  - Skema Kolom Database (`SlotHasil` di `prisma/schema.prisma` dan migrasi `20261020070000_tambah_foto_dokumentasi_pemenang`):
+    - `foto_dokumentasi`: `String[]` (ID berkas aset bukti serah terima simbolis, maks. 3 foto).
+    - `diserahkan_at`: `DateTime?` (waktu penyerahan hadiah simbolis tercatat).
+    - `diserahkan_catatan`: `String?` (catatan / keterangan serah terima simbolis).
+  - API Layanan & Endpoint Pemenang:
+    - `POST /api/periode/:id/pemenang/:slot/foto`: Mengunggah foto bukti serah terima simbolis (multipart/form-data dan JSON base64) dengan batas 3 foto per pemenang serta validasi tipe magic bytes (JPG/PNG/WebP, maks. 5 MB).
+    - `PATCH /api/periode/:id/pemenang/:slot/foto`: Memperbarui catatan serah terima simbolis.
+    - `DELETE /api/periode/:id/pemenang/:slot/foto/:fotoId`: Menghapus foto bukti dokumentasi dari slot pemenang.
+    - Audit log otomatis: `PEMENANG_DOKUMENTASI_SIMBOLIS` dan `PEMENANG_HAPUS_FOTO`.
+  - Panel Admin Kelola Pemenang (`DokumentasiSimbolisAdmin`):
+    - Kartu bukti penyerahan simbolis pada slot pemenang sah yang belum gugur.
+    - Thumbnail galeri foto dokumentasi dengan aksi pratinjau penuh dan hapus foto berkonfirmasi.
+    - Tombol unggah foto bukti dengan indikator sisa kuota (maksimal 3 foto).
+    - Input dan penyimpanan catatan penyerahan simbolis beserta informasi waktu penyerahan.
+  - Halaman Publik Pemenang (`TampilanPemenangPublik` / `KartuSlotPublik`):
+    - Lencana resmi "Hadiah Telah Diserahkan" dan seksi bukti penyerahan simbolis pada kartu pemenang zona yang memiliki foto dokumentasi.
+    - Galeri thumbnail 3 kolom dengan efek hover zoom.
+    - Modal lightbox interaktif resolusi penuh dengan navigasi keyboard (Escape, Panah Kiri/Kanan), tombol previous/next, dan keterangan catatan serta waktu serah terima.
+
+### Changed
+
+- Redesign visual menyeluruh halaman publik pemenang (`/pemenang` / `TampilanPemenangPublik`):
+  - Mengadopsi palet resmi Oasis & Champagne Gold selaras dengan identitas acara Bapenda Kabupaten OKU Selatan.
+  - Kartu pemenang utama bergaya piagam penghargaan (certificate style) dengan matriks rekam kepatuhan 5 tahun berturut-turut, penyamaran identitas pajak berstandar UU PDP, dan lencana kehormatan.
+  - Penyederhanaan hirarki visual (Impeccable Distill): memangkas inflasi lencana status (menghapus 3 badge redundan pada kartu pemenang utama), menghapus bingkai kotak bersarang (*nested card borders*), mempertegas tipografi nama pemenang sebagai fokus utama (*Hero*), menyederhanakan indikator kepatuhan 5 tahun, dan mengalirkan galeri bukti dokumentasi penyerahan secara alami tanpa bingkai kawat ganda.
+  - Penyelarasan Grid 2 Kolom Identitas Pemenang: Nama dan NOP bertitik di kolom kiri, sejajar dengan Kecamatan dan Desa di kolom kanan (menggantikan istilah Kelurahan sesuai nomenklatur daerah).
+  - Pembersihan Footer Kartu: Menghapus teks redundan status verifikasi dan stempel waktu pembaruan di bagian bawah kartu pemenang utama.
+  - Form Admin Catatan & Tanggal Penyerahan: Menambahkan input pemilih tanggal penyerahan (`input type="date"`) pada `DokumentasiSimbolisAdmin` dan integrasi *API* `PATCH` untuk memperbarui kolom `diserahkanAt`.
+  - Akordeon Lipat Integritas Kriptografis: Mengemas seksi pembuktian hash SHA-256 dan tabel rekapitulasi ke dalam akordeon interaktif dengan transisi ketinggian kisi CSS yang halus, memangkas tinggi halaman publik secara signifikan.
+  - Tabel Komparasi Rekapitulasi Peserta: Menambahkan kolom pembanding jumlah peserta yang tidak lolos kriteria 5 tahun berturut-turut beserta total wajib pajak per wilayah.
+  - Layout Responsif Desktop 2 Kolom (*Side-by-Side*): Zona 1 dan Zona 2 kini tampil berdampingan dalam 1 baris di layar desktop (`lg:grid-cols-2`), membuat tampilan jauh lebih padat dan ringkas tanpa gulir vertikal berlebihan.
+  - Tumpukan Foto Interaktif (*Photo Stack*): dokumentasi serah terima foto disajikan dalam bentuk tumpukan bertingkat (*polaroid card stack*) dengan lencana counter jumlah foto; foto utama tampil di depan dan foto pendukung menumpuk di belakangnya dengan efek fanning interaktif saat disentuh/hover.
+  - Penataan zona (Wilayah 1 & Wilayah 2) yang tegas dengan pemisahan visual yang jelas antara Pemenang Utama dan Kandidat Cadangan Siaga.
+  - Buku besar audit kriptografis (Digital Audit Ledger) untuk hash SHA-256 snapshot dan berkas hasil dengan tombol salin interaktif dan tabel rekapitulasi tabular.
+  - Pratinjau galeri dokumentasi simbolis dan modal lightbox resolusi penuh dengan navigasi keyboard (`Esc`, `ArrowLeft`, `ArrowRight`).
+
 ## Revisi Versi 1 - 2026-10-18
 
 ### Added
